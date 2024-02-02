@@ -177,7 +177,6 @@ class TestCharacter(CharacterEntity):
         # print("HI")
         # print(wrld)
                 # Commands
-        # print(self.getWorld(wrld))
         worldArray = self.getWorld(wrld)
         startWhere = np.where(worldArray == 'C')
         startCoords = (startWhere[0][0], startWhere[1][0])
@@ -194,6 +193,7 @@ class TestCharacter(CharacterEntity):
         dy = path[1][0] - path[0][0]
         dx = path[1][1] - path[0][1]
         # Execute commands
+        print(dy, dx)
         self.move(dx, dy)
         
         # implement a version of a* that uses a heuristic to get optimal path to target
