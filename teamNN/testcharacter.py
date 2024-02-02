@@ -50,8 +50,20 @@ class TestCharacter(CharacterEntity):
         prob = np.zeros((10,1))
         pass
 
+    def findMonsters(self,wrld):
+        monsters = []
+        for x in range(wrld.width()):
+            for y in range(wrld.height()):
+                #+= appends empty lists and any list given
+                monsterAt = wrld.monsters_at(x,y)
+                # print(monsterAt) 
+                if(monsterAt != None):
+                    monsters += monsterAt
+        return monsters
+
     def getMonCoords(self, world):
-        pass
+        allMonsters = self.findMonsters(world)
+        return [(monster.x, monster.y) for monster in allMonsters]
 
     def getMonActions(self, world):
         prob = numMonsters*np.zeros((9,9))
