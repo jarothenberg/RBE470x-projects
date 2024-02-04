@@ -220,27 +220,24 @@ class TestCharacter(CharacterEntity):
     def doAct(self, world, act):
         pass
 
-    def generateAllMonActions(self, numMons):
-        ranges = [range(9) for _ in range(numMons)]
-        allActions = np.array(list(product(*ranges)), dtype=np.ubyte)
-        return allActions
-
     def do(self, world):
         # Your code here
         sensedWorld = world.from_world(world)
         playerActions = self.validActions(world)
         allMonActions = self.getMonActions(world)
+        numMonActions = 9
         maxActEval = 0
         bestAct = 0
         numMonsters = 2
-        allMonActionsList = self.generateAllMonActions(numMonsters)
         for playerAct in playerActions:
             actEval = 0
-            for allMonActions in allMonActionsList:
+            allMoves = product(*(range(numMonActions) for _ in range(numMonsters)))
+            for monMoves in allMoves:
+                # print(combination)
                 sensedWorldTemp = world.from_world(sensedWorld)
-                self.doAct(sensedWorldTemp, playerAct, allMonActions)
+                self.doAct(sensedWorldTemp, playerAct, monMoves)
                 eval = self.evalState(sensedWorldTemp)
-                prob = self.calcMoveProb(sensedWorldTemp, allMonActions)
+                prob = self.calcMoveProb(sensedWorldTemp, monMoves)
                 actEval += eval*prob
             if actEval > maxActEval:
                 maxActEval = actEval
