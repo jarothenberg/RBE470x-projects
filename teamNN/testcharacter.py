@@ -1,4 +1,5 @@
 # This is necessary to find the main code
+from itertools import product
 from queue import PriorityQueue
 import sys
 sys.path.insert(0, '../bomberman')
@@ -219,30 +220,30 @@ class TestCharacter(CharacterEntity):
     def doAct(self, world, act):
         pass
 
+    def generateAllMonActions(self, numMons):
+        ranges = [range(9) for _ in range(numMons)]
+        allActions = np.array(list(product(*ranges)), dtype=np.ubyte)
+        return allActions
+
     def do(self, world):
         # Your code here
         sensedWorld = world.from_world(world)
-        actions = self.validActions(world)
+        playerActions = self.validActions(world)
         allMonActions = self.getMonActions(world)
         maxActEval = 0
         bestAct = 0
-
-        monActions = [(-1,-1),(-1,0),(-1,1),(0,-1),(0,0),(0,1),(1,-1),(1,0),(1,1)]
-
-        for act in actions:
+        numMonsters = 2
+        allMonActionsList = self.generateAllMonActions(numMonsters)
+        for playerAct in playerActions:
             actEval = 0
-            for mon in monsters:
-                for monActs in monActions:
-                    print(monActs)
-                    sensedWorldTemp = world.from_world(sensedWorld)
-                    self.doAct(sensedWorldTemp, act)
-                    for monAct in monActs:
-                        self.doAct(sensedWorldTemp, monAct)
-                    eval = self.evalState(sensedWorldTemp)
-                    prob = self.calcMoveProb(sensedWorldTemp, monActs)
-                    actEval += eval*prob
+            for allMonActions in allMonActionsList:
+                sensedWorldTemp = world.from_world(sensedWorld)
+                self.doAct(sensedWorldTemp, playerAct, allMonActions)
+                eval = self.evalState(sensedWorldTemp)
+                prob = self.calcMoveProb(sensedWorldTemp, allMonActions)
+                actEval += eval*prob
             if actEval > maxActEval:
                 maxActEval = actEval
-                bestAct = act
+                bestAct = playerAct
         
         self.doAct(world, bestAct)
