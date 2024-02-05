@@ -240,8 +240,9 @@ class TestCharacter(CharacterEntity):
         prob = np.zeros((10,1))
         pass
 
-    def findMonsters(self,wrld):
+    def getMonsters(self,wrld):
         monsters = []
+
         for x in range(wrld.width()):
             for y in range(wrld.height()):
                 #+= appends empty lists and any list given
@@ -251,6 +252,21 @@ class TestCharacter(CharacterEntity):
                     monsters += monsterAt
         return monsters
 
+    # def getEntities(self, world, entityName = "monster"):
+        # pass
+
+    def getCharacteres(self,wrld):
+        characters = []
+
+        for x in range(wrld.width()):
+            for y in range(wrld.height()):
+                #+= appends empty lists and any list given
+                charactersAt = wrld.characters_at(x,y)
+                # print(monsterAt) 
+                if(charactersAt != None):
+                    characters += charactersAt 
+        return characters 
+
     def getMonCoords(self, world):
         allMonsters = self.findMonsters(world)
         return [(monster.x, monster.y) for monster in allMonsters]
@@ -259,8 +275,81 @@ class TestCharacter(CharacterEntity):
         prob = numMonsters*np.zeros((9,9))
         pass
 
-    def doAct(self, world, act):
+
+    def doAct(self, world, act): #-> World:
         pass
+
+    def doCharacterActions(self, world: World, actions: list[list[tuple[int, int], list[tuple[int, int]]]]) -> World:
+        #actions is a list of list()
+        #Each inner list is an action, contains a tuple coodites of where to perform the action 
+        #and a list of the dx dy movemnt for each entity at that location.
+        for action in actions:
+            self.doCharacterAction(self, world, action)
+        
+    def cancelCharacterAndMonsterMovement(self, world: World) -> World:
+        for monster in self.getMonsters(world):
+            monster.move(0,0)
+        for character in self.getCharacteres(world):
+            character.move(0,0)
+
+        return world
+
+    def doCharacterAction(self, world: World, action: list[tuple[int, int], list[tuple[int, int]]]) -> World:
+        world = self.cancelCharacterAndMonsterMovement(world)
+        
+        #'''
+        actionPosition = action[0]
+        actionMovement = action[1]
+        charactersAt = world.characters_at(actionPosition[0], actionPosition[1])
+        if(charactersAt != None):
+            for i, character in enumerate(charactersAt):
+                if(i < len(actionMovement)):
+                    #Order specified doesn't really matter, because characters on identical indexes are functionally (and in code, the same)
+                    character.move(actionMovement[i][0], actionMovement[i][1])
+        #'''
+        
+
+        (newWorld, events) = world.next()
+        return newWorld
+    
+    def doMonsterAction(self, world: World, action: list[tuple[int, int], list[tuple[int, int]]]) -> World:
+        world = self.cancelCharacterAndMonsterMovement(world)
+        
+        #'''
+        actionPosition = action[0]
+        actionMovement = action[1]
+        monstersAt = world.monsters_at(actionPosition[0], actionPosition[1])
+        if(monstersAt != None):
+            for i, monster in enumerate(monstersAt):
+                if(i < len(actionMovement)):
+                    #Order specified doesn't really matter, because characters on identical indexes are functionally (and in code, the same)
+                    # print("MV")
+                    monster.move(actionMovement[i][0], actionMovement[i][1])
+        #''' 
+
+        (newWorld, events) = world.next()
+        return newWorld 
+    
+    def doActions(self, world: World, actions: list[tuple[int, int]]) -> World:
+        #Easier Version where all the movements are stored in one list, no character position, just assumed it is the first character in the index order
+        #Assignes movements to all characters first then monsters based on order provided in getMonsters
+        #This is one step
+        world = self.cancelCharacterAndMonsterMovement(world)
+
+        characters = self.getCharacteres(world)
+        monsters = self.getMonsters(world)
+        numCharacters = len(characters) 
+
+        print(monsters)
+
+        for i, actionMovement in enumerate(actions):
+            if(i < numCharacters):
+                characters[i].move(actionMovement[0], actionMovement[1])
+            else:
+                monsters[i - numCharacters].move(actionMovement[0], actionMovement[1])
+        
+        (newWorld, events) = world.next()
+        return newWorld
 
     def do(self, world):
         # Your code here
