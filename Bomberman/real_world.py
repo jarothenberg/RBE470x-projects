@@ -30,7 +30,8 @@ class RealWorld(World):
         """Returns a new world state, along with the events that occurred"""
         self.time = self.time - 1
         self.update_explosions()
-        self.events = self.update_bombs() + self.update_monsters() + self.update_characters()
+        # self.events = self.update_bombs() + self.update_monsters() + self.update_characters()
+        self.events = self.update_bombs() + self.update_characters()
         self.update_scores()
         self.manage_events()
         return (self, self.events)

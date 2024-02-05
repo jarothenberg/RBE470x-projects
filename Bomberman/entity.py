@@ -134,6 +134,9 @@ class AIEntity(Entity):
     def __ne__(self, other):
         return not(self == other)
 
+    def __repr__(self):
+        return f"{self.name} Entity at ({self.x},{self.y})"
+
 ################
 # Owned entity #
 ################
