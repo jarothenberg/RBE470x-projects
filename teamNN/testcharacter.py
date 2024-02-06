@@ -7,7 +7,8 @@ sys.path.insert(0, '../bomberman')
 import numpy as np
 from entity import CharacterEntity
 from colorama import Fore, Back
-
+from world import World
+import math
 class TestCharacter(CharacterEntity):
 
     def getWorld(self, world):
@@ -87,7 +88,25 @@ class TestCharacter(CharacterEntity):
 
         distance = (((goalCoordsY - coordsY)**2)+(goalCoordsX - coordsX)**2)**0.5
         return distance
+
+    def bomberManCoords(self, world):
+        bombMan = []
+        for x in range(world.width()):
+            for y in range(world.height()):
+                if world.characters_at(x,y):
+                    bombMan = [x, y]
+
+        return bombMan
     
+    def exitCoords(self, world):
+        exitC = []
+        for x in range(world.width()):
+            for y in range(world.height()):
+                if world.exit_at(x,y):
+                    exitC = [x, y]
+
+        return exitC 
+
     def aStar(self, worldArray, startCoords, goalCoords):
         frontier = PriorityQueue()
         frontier.put(startCoords, 0)
@@ -117,48 +136,36 @@ class TestCharacter(CharacterEntity):
             step = came_from[step]
         return finalPath
 
-    def bomberManCoords(self, world):
-        bombMan = []
-        for x in range(world.width()):
-            for y in range(world.height()):
-                if world.characters_at(x,y):
-                    bombMan = [x, y]
-
-        return bombMan
-    
-    def exitCoords(self, world):
-        exitC = []
-        for x in range(world.width()):
-            for y in range(world.height()):
-                if world.exit_at(x,y):
-                    exitC = [x, y]
-
-        return exitC 
-
-
 
     def evalState(self, world): #this will return a "score" which will tell you how desireable the state is
+        #implement A* in the eval 
+        #or control the depth 
         stateScore = 0  #return score
         #stateProb = 0
         #return [stateScore, stateProb]
         coordsBM = self.bomberManCoords(world) #coords for BomberMan
+        #print(coordsBM)
+
+        # character = self.getCharacteres(world)[0]
+        # coordsBM = [character.x, character.y]
+        
         monsterLocs = self.getMonCoords(world) # coords for the monter
         exitLoc = self.exitCoords(world) # coords for exit
-        worldScore = world.scores[self] #is a dictionary { character_name : score } that contains the score of every character in this case getting the score of the character and intergrating it to the function
+        #worldScore = world.scores[self] #is a dictionary { character_name : score } that contains the score of every character in this case getting the score of the character and intergrating it to the function
         
         #weights for score change based on values :)
-        monsterDistWeight = -0.2
-        exitDisWeight = -0.1
+        monsterDistWeight = 1
+        exitDisWeight = 1
 
         #getting score for monsters
         for monsterLoc in monsterLocs:
             #calculating the Euclidean between the monster and BM
-            disMonToBMan = math.sqrt((monsterLoc[0]- coordsBM[0])**2 + (monsterLoc[1]- coordsBM[1])**2 ) #distance from BM to Monster
-            stateScore += disMonToBMan * monsterDistWeight
+            disMonToBMan = math.sqrt((monsterLoc[0]- coordsBM[0])**2 + (monsterLoc[1]- coordsBM[1])**2) #distance from BM to Monster
+            stateScore -= 10**(monsterDistWeight-disMonToBMan)
 
-        #getting score from BM to exit (#calculating the Euclidean between the exit and BM)
-        exitToBM =  math.sqrt((exitLoc[0]- coordsBM[0])**2 + (exitLoc[1]- coordsBM[1])**2 )
-        stateScore += exitToBM * exitDisWeight
+        #getting score from BM to exit (#calculating the A* length between the exit and BM)
+        exitToBM = len(self.aStar(self.getWorld(world), (coordsBM[1], coordsBM[0]), (exitLoc[1], exitLoc[0])))
+        stateScore -= exitToBM * exitDisWeight
 
         #will add score for bombs later.............
 
@@ -268,7 +275,7 @@ class TestCharacter(CharacterEntity):
         return characters 
 
     def getMonCoords(self, world):
-        allMonsters = self.findMonsters(world)
+        allMonsters = self.getMonsters(world)
         return [(monster.x, monster.y) for monster in allMonsters]
 
     def getMonActions(self, world):
@@ -276,8 +283,23 @@ class TestCharacter(CharacterEntity):
         pass
 
 
-    def doAct(self, world, act): #-> World:
-        pass
+    # def doAct(self, world: World, playerAction: int, monsterActions: tuple[int]) -> World:
+    #     #Do Monsters Actions
+    #     for i,monsterAction in enumerate(monsterActions):
+    #         (dx,dy) = self.actionToDxDy()
+    #     # newWorld = 
+    #     #Do Players Actions
+    #     pass
+    def doAct(self, world: World, playerAction: int) -> World:
+        character = self.getCharacteres(world)[0]
+        if(playerAction < 9):
+            (dx,dy) = self.actionToDxDy(playerAction)
+            character.move(dx,dy)
+        else:
+            character.place_bomb()
+
+        (newWorld, events) = world.next()
+        return newWorld
 
     def doCharacterActions(self, world: World, actions: list[list[tuple[int, int], list[tuple[int, int]]]]) -> World:
         #actions is a list of list()
@@ -350,28 +372,91 @@ class TestCharacter(CharacterEntity):
         
         (newWorld, events) = world.next()
         return newWorld
+    
+    def actionToDxDy(self, action: int) -> tuple[int, int]:
+        if(action == 0):
+            #TL
+            dy = -1; dx = -1
+        elif(action == 1):
+            #TM
+            dy = -1; dx = 0
+        elif(action == 2):
+            #TR
+            dy = -1; dx = 1
+        elif(action == 3):
+            #ML
+            dy = 0; dx = -1
+        elif(action == 4):
+            #MC
+            dy = 0; dx = 0
+        elif(action == 5):
+            #MR
+            dy = 0; dx = 1
+        elif(action == 6):
+            #BL
+            dy = 1; dx = -1
+        elif(action == 7):
+            #BC
+            dy = 1; dx = 0
+        elif(action == 8):
+            #BR
+            dy = 1; dx = 1
+                
+        return (dx,dy)
+
+
+    def doRealAction(self, world: World, action: int):
+        if(action < 9):
+            (dx,dy) = self.actionToDxDy(action)
+            self.move(dx,dy)
+        else:
+            self.place_bomb()
+        
 
     def do(self, world):
         # Your code here
         sensedWorld = world.from_world(world)
-        playerActions = self.validActions(world)
-        allMonActions = self.getMonActions(world)
+        # playerActions = self.validActions(world) # 0-9
+        playerActions = range(10)
+        # allMonActions = self.getMonActions(world) # 0-8
+        allMonActions = range(9)
         numMonActions = 9
-        maxActEval = 0
+        maxActEval = -10000000
         bestAct = 0
         numMonsters = 2
         for playerAct in playerActions:
-            actEval = 0
-            allMoves = product(*(range(numMonActions) for _ in range(numMonsters)))
-            for monMoves in allMoves:
-                # print(combination)
-                sensedWorldTemp = world.from_world(sensedWorld)
-                self.doAct(sensedWorldTemp, playerAct, monMoves)
-                eval = self.evalState(sensedWorldTemp)
-                prob = self.calcMoveProb(sensedWorldTemp, monMoves)
-                actEval += eval*prob
-            if actEval > maxActEval:
-                maxActEval = actEval
+            actEval = 0 # Sum total of this Chance Node
+        #     allMoves = product(*(range(numMonActions) for _ in range(numMonsters)))
+        #     for monMoves in allMoves:
+        #         print(monMoves)
+            sensedWorldTemp = world.from_world(sensedWorld)
+            newWorld = self.doAct(sensedWorldTemp, playerAct)
+
+            character = self.getCharacteres(newWorld)[0]
+            # print(character.x,character.y)
+
+
+            # newWorld.printit()
+            eval = self.evalState(newWorld)
+        #         playerCoords = self.getPlayerPosition(sensedWorldTemp)
+        #         prob = self.calcMoveProb(sensedWorldTemp, monMoves, playerCoords)
+        #         actEval += eval*prob
+            print(f"Action: {playerAct}, Score: {eval}")
+
+            if eval > maxActEval:
+                maxActEval = eval
                 bestAct = playerAct
-        
-        self.doAct(world, bestAct)
+                
+            print(f"Best Action: {bestAct}")
+        # for monMoves in allMoves:
+        #     #Probability Moster makes all of its 9*9 actions
+        #     #do monster action
+            
+        #     for playerAct in playerActions:
+                #do player action
+                #score. 
+
+
+
+        # self.doAct(world, bestAct)
+        self.doRealAction(world, bestAct)
