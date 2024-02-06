@@ -107,6 +107,7 @@ class Game:
         step()
         while not self.done():
             (self.world, self.events) = self.world.next()
+            # step()
             self.display_gui()
             self.draw()
             step()
@@ -118,6 +119,7 @@ class Game:
     ###################
 
     def draw(self):
+        # pass
         self.world.printit()
 
     def done(self):
