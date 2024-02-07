@@ -164,7 +164,7 @@ class TestCharacter(CharacterEntity):
         #worldScore = world.scores[self] #is a dictionary { character_name : score } that contains the score of every character in this case getting the score of the character and intergrating it to the function
         
         #weights for score change based on values :)
-        monsterDistWeight = 3
+        monsterDistWeight = 2
         exitDisWeight = 1
 
         #getting score for monsters
@@ -448,6 +448,12 @@ class TestCharacter(CharacterEntity):
         else:
             self.move(0,0)
             self.place_bomb()
+
+    def checkIfDone(self, events):
+        for event in events:
+            if event.tpe == Event.CHARACTER_FOUND_EXIT:
+                return True
+        return False
         
 
     def do(self, world):
@@ -458,8 +464,6 @@ class TestCharacter(CharacterEntity):
         # allMonActions = self.getMonActions(world) # 0-8
         allMonActions = range(9)
         numMonActions = 9
-        maxActEval = -10000000
-        bestAct = 0
         numMonsters = 1
 
 
@@ -469,32 +473,53 @@ class TestCharacter(CharacterEntity):
         monsterMovedWorld = self.cancelCharacterAndMonsterMovement(copyWorld)
         # (monsterMovedWorld, events) = monsterMovedWorld.next()
         # monsterMovedWorld.printit()
-        for playerAct in playerActions:
-            actEval = 0 # Sum total of this Chance Node
-            # print("69SHIT: ", self.bomberManCoords(monsterMovedWorld))
-            copyMonsterMoveWorld = monsterMovedWorld.from_world(monsterMovedWorld)
-            (afterPlayerMoveWorld, playerEvents) = self.doAct(copyMonsterMoveWorld, playerAct)
+        bestAct1 = 0
+        maxAct1Eval = -10000000
+        for playerAct1 in playerActions:
+            act1Eval = 0 # Sum total of this Chance Node
+            depth0WorldCopy = monsterMovedWorld.from_world(monsterMovedWorld)
+            (depth1World, playerEvents1) = self.doAct(depth0WorldCopy, playerAct1)
             #World After we have done Characters action. 
-            afterPlayerMoveWorld = self.cancelCharacterAndMonsterMovement(afterPlayerMoveWorld)
+            depth1World = self.cancelCharacterAndMonsterMovement(depth1World)
 
             allMoves = product(*(range(numMonActions) for _ in range(numMonsters)))
-            for monMoves in allMoves:
-                copyAfterPlayerMove = afterPlayerMoveWorld.from_world(afterPlayerMoveWorld)
+            for monMoves1 in allMoves:
+                depth1WorldCopy = depth1World.from_world(depth1World)
                 #World after monster has done probabailstic Action
-                # print("premonmove: ", self.getMonCoords(copyAfterPlayerMove))
-                (afterMonsterProbMove, monEvents) = self.doMonsterActs(copyAfterPlayerMove, monMoves)
-                eval = self.evalState(afterMonsterProbMove, monEvents, playerEvents)
-                # print(eval, "postmonmove: ", self.getMonCoords(afterMonsterProbMove))
-                prob = 1/9 # self.calcMoveProb(sensedWorldTemp, monMoves, playerCoords)
-                actEval += eval*prob 
-        #        
-            print(f"Action: {playerAct}, Score: {actEval}, Coords: {self.bomberManCoords(afterPlayerMoveWorld)}")
+                (depth2World, monEvents1) = self.doMonsterActs(depth1WorldCopy, monMoves1)
 
-            if actEval > maxActEval:
-                maxActEval = actEval
-                bestAct = playerAct
+                bestAct2 = 0
+                maxAct2Eval = -10000000
+                for playerAct2 in playerActions:
+                    act2Eval = 0
+                    depth2WorldCopy = depth2World.from_world(depth2World)
+                    (depth3World, playerEvents2) = self.doAct(depth2WorldCopy, playerAct2)
+                    depth3World = self.cancelCharacterAndMonsterMovement(depth3World)
+
+                    for event in playerEvents2: print(event.tpe)
+                    allMoves = product(*(range(numMonActions) for _ in range(numMonsters)))
+                    for monMoves2 in allMoves:
+                        depth3WorldCopy = depth3World.from_world(depth3World)
+                        #World after monster has done probabailstic Action
+                        (depth4World, monEvents2) = self.doMonsterActs(depth3WorldCopy, monMoves2)
+                        eval2 = self.evalState(depth4World, monEvents2, playerEvents2)
+                        prob = 1/9
+                        act2Eval += eval2*prob
+
+                    if act2Eval > maxAct2Eval:
+                        maxAct2Eval = act2Eval
+                        bestAct2 = playerAct2
+
+                eval1 = maxAct2Eval
+                prob = 1/9
+                act1Eval += eval1*prob
+
+            if act1Eval > maxAct1Eval:
+                maxAct1Eval = act1Eval
+                bestAct1 = playerAct1
                 
-            print(f"Best Action: {bestAct}")
+            print(f"Action: {playerAct1}, Score: {act1Eval}")
+        print(f"Best Action: {bestAct1}")
         # for monMoves in allMoves:
         #     #Probability Moster makes all of its 9*9 actions
         #     #do monster action
@@ -506,5 +531,5 @@ class TestCharacter(CharacterEntity):
 
 
         # self.doAct(world, bestAct)
-        self.doRealAction(world, bestAct)
+        self.doRealAction(world, bestAct1)
         monsterMovedWorld = self.cancelCharacterAndMonsterMovement(copyWorld)
