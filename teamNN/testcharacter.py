@@ -139,14 +139,19 @@ class TestCharacter(CharacterEntity):
         return finalPath
 
 
-    def evalState(self, world: World, events: list[Event]): #this will return a "score" which will tell you how desireable the state is
+    def evalState(self, world: World, monEvents: list[Event], playerEvents: list[Event]): #this will return a "score" which will tell you how desireable the state is
         #implement A* in the eval 
         #or control the depth 
         stateScore = 0  #return score
         #stateProb = 0
         #return [stateScore, stateProb]
         coordsBM = self.bomberManCoords(world) #coords for BomberMan
-        for event in events:
+        for event in playerEvents:
+            if event.tpe == Event.CHARACTER_FOUND_EXIT:
+                return 1000000
+            if event.tpe == Event.CHARACTER_KILLED_BY_MONSTER:
+                return -1000000
+        for event in monEvents:
             if event.tpe == Event.CHARACTER_FOUND_EXIT:
                 return 1000000
             elif event.tpe == Event.CHARACTER_KILLED_BY_MONSTER:
@@ -298,30 +303,36 @@ class TestCharacter(CharacterEntity):
 
     #simulated Action 
     def doAct(self, world: World, playerAction: int) -> World:
+        # print("0SHIT: ", self.bomberManCoords(world))
         characters = self.getCharacteres(world)
         if(len(characters) > 0):
             character = characters[0] 
             if(playerAction < 9):
                 (dx,dy) = self.actionToDxDy(playerAction)
+                # newCoords = np.array(self.bomberManCoords(world)) + np.array([dx,dy])
+                # if world.wall_at(newCoords[0], newCoords[1]):
+                #     (dx,dy) = (0,0)
                 character.move(dx,dy)
             else:
                 character.move(0,0)
                 character.place_bomb()
         
         (newWorld, events) = world.next()
+        # print("1SHIT: ", self.bomberManCoords(newWorld))
         return (newWorld, events) 
      
-    def doMonsterActs(self, world: World, monsterActions: tuple(int)) -> World:
+    def doMonsterActs(self, world: World, monsterActions: tuple[int]) -> World:
+        # print("0SHIT: ", self.bomberManCoords(world))
         monsters = self.getMonsters(world)
         if(len(monsters) > 0):
             for i, monster in enumerate(monsters):
                 if(monsterActions[i] < 9):
                     (dx,dy) = self.actionToDxDy(monsterActions[i])
-                    monster.move(dx,dy)
                 else:
                     monster.move(0,0)
         
         (newWorld, events) = world.next()
+        # print("1SHIT: ", self.bomberManCoords(newWorld))
         return (newWorld, events) 
 
 
@@ -450,18 +461,18 @@ class TestCharacter(CharacterEntity):
         bestAct = 0
         numMonsters = 2
 
+
         (monsterMovedWorld, events) = copyWorld.next()
         # monsterMovedWorld.printit()
         #After the monsters Have done their determined action
-        monsterMovedWorld = self.cancelCharacterAndMonsterMovement(monsterMovedWorld)
+        monsterMovedWorld = self.cancelCharacterAndMonsterMovement(copyWorld)
         # (monsterMovedWorld, events) = monsterMovedWorld.next()
         # monsterMovedWorld.printit()
-
         for playerAct in playerActions:
             actEval = 0 # Sum total of this Chance Node
-            
+            # print("69SHIT: ", self.bomberManCoords(monsterMovedWorld))
             copyMonsterMoveWorld = monsterMovedWorld.from_world(monsterMovedWorld)
-            (afterPlayerMoveWorld, events) = self.doAct(copyMonsterMoveWorld, playerAct)
+            (afterPlayerMoveWorld, playerEvents) = self.doAct(copyMonsterMoveWorld, playerAct)
             #World After we have done Characters action. 
             afterPlayerMoveWorld = self.cancelCharacterAndMonsterMovement(afterPlayerMoveWorld)
 
@@ -469,12 +480,12 @@ class TestCharacter(CharacterEntity):
             for monMoves in allMoves:
                 copyAfterPlayerMove = afterPlayerMoveWorld.from_world(afterPlayerMoveWorld)
                 #World after monster has done probabailstic Action
-                (afterMonsterProbMove, events) = self.doAct(copyAfterPlayerMove, monMoves)
-                eval = self.evalState(afterMonsterProbMove, events)
+                (afterMonsterProbMove, monEvents) = self.doMonsterActs(copyAfterPlayerMove, monMoves)
+                eval = self.evalState(afterMonsterProbMove, monEvents, playerEvents)
                 prob = 1/9 # self.calcMoveProb(sensedWorldTemp, monMoves, playerCoords)
                 actEval += eval*prob 
         #        
-            print(f"Action: {playerAct}, Score: {eval}")
+            print(f"Action: {playerAct}, Score: {actEval}, Coords: {self.bomberManCoords(afterPlayerMoveWorld)}")
 
             if actEval > maxActEval:
                 maxActEval = actEval
@@ -493,3 +504,4 @@ class TestCharacter(CharacterEntity):
 
         # self.doAct(world, bestAct)
         self.doRealAction(world, bestAct)
+        monsterMovedWorld = self.cancelCharacterAndMonsterMovement(copyWorld)
