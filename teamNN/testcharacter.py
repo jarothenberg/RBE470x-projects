@@ -164,7 +164,7 @@ class TestCharacter(CharacterEntity):
         #worldScore = world.scores[self] #is a dictionary { character_name : score } that contains the score of every character in this case getting the score of the character and intergrating it to the function
         
         #weights for score change based on values :)
-        monsterDistWeight = 1
+        monsterDistWeight = 3
         exitDisWeight = 1
 
         #getting score for monsters
@@ -328,6 +328,7 @@ class TestCharacter(CharacterEntity):
             for i, monster in enumerate(monsters):
                 if(monsterActions[i] < 9):
                     (dx,dy) = self.actionToDxDy(monsterActions[i])
+                    monster.move(dx,dy)
                 else:
                     monster.move(0,0)
         
@@ -459,7 +460,7 @@ class TestCharacter(CharacterEntity):
         numMonActions = 9
         maxActEval = -10000000
         bestAct = 0
-        numMonsters = 2
+        numMonsters = 1
 
 
         (monsterMovedWorld, events) = copyWorld.next()
@@ -480,8 +481,10 @@ class TestCharacter(CharacterEntity):
             for monMoves in allMoves:
                 copyAfterPlayerMove = afterPlayerMoveWorld.from_world(afterPlayerMoveWorld)
                 #World after monster has done probabailstic Action
+                # print("premonmove: ", self.getMonCoords(copyAfterPlayerMove))
                 (afterMonsterProbMove, monEvents) = self.doMonsterActs(copyAfterPlayerMove, monMoves)
                 eval = self.evalState(afterMonsterProbMove, monEvents, playerEvents)
+                # print(eval, "postmonmove: ", self.getMonCoords(afterMonsterProbMove))
                 prob = 1/9 # self.calcMoveProb(sensedWorldTemp, monMoves, playerCoords)
                 actEval += eval*prob 
         #        
