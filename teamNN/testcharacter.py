@@ -10,6 +10,7 @@ from colorama import Fore, Back
 from world import World
 import math
 from events import Event
+from sensed_world import SensedWorld
 
 class TestCharacter(CharacterEntity):
 
@@ -172,10 +173,16 @@ class TestCharacter(CharacterEntity):
             #calculating the Euclidean between the monster and BM
             disMonToBMan = math.sqrt((monsterLoc[0]- coordsBM[0])**2 + (monsterLoc[1]- coordsBM[1])**2) #distance from BM to Monster
             stateScore -= 10**(monsterDistWeight-disMonToBMan)
+        
+        print(f"SS: After mon {stateScore}")
 
         #getting score from BM to exit (#calculating the A* length between the exit and BM)
         exitToBM = len(self.aStar(self.getWorld(world), (coordsBM[1], coordsBM[0]), (exitLoc[1], exitLoc[0])))
-        stateScore -= exitToBM * exitDisWeight
+        
+        exitAdd = -(exitToBM * exitDisWeight)
+        stateScore += exitAdd 
+
+        print(f"SS: added {exitAdd}, final {stateScore}")
 
         #will add score for bombs later.............
 
@@ -452,7 +459,7 @@ class TestCharacter(CharacterEntity):
 
     def do(self, world):
         # Your code here
-        copyWorld = world.from_world(world)
+        # copyWorld = SensedWorld.from_world(world)
         # playerActions = self.validActions(world) # 0-9
         playerActions = range(10)
         # allMonActions = self.getMonActions(world) # 0-8
@@ -463,16 +470,18 @@ class TestCharacter(CharacterEntity):
         numMonsters = 1
 
 
-        (monsterMovedWorld, events) = copyWorld.next()
+        #'''
+        (monsterMovedWorld, events) = world.next()
         # monsterMovedWorld.printit()
         #After the monsters Have done their determined action
-        monsterMovedWorld = self.cancelCharacterAndMonsterMovement(copyWorld)
+        monsterMovedWorld = self.cancelCharacterAndMonsterMovement(monsterMovedWorld)
         # (monsterMovedWorld, events) = monsterMovedWorld.next()
-        # monsterMovedWorld.printit()
+        monsterMovedWorld.printit()
+        
         for playerAct in playerActions:
             actEval = 0 # Sum total of this Chance Node
             # print("69SHIT: ", self.bomberManCoords(monsterMovedWorld))
-            copyMonsterMoveWorld = monsterMovedWorld.from_world(monsterMovedWorld)
+            copyMonsterMoveWorld = SensedWorld.from_world(monsterMovedWorld)
             (afterPlayerMoveWorld, playerEvents) = self.doAct(copyMonsterMoveWorld, playerAct)
             #World After we have done Characters action. 
             afterPlayerMoveWorld = self.cancelCharacterAndMonsterMovement(afterPlayerMoveWorld)
@@ -483,6 +492,7 @@ class TestCharacter(CharacterEntity):
                 #World after monster has done probabailstic Action
                 # print("premonmove: ", self.getMonCoords(copyAfterPlayerMove))
                 (afterMonsterProbMove, monEvents) = self.doMonsterActs(copyAfterPlayerMove, monMoves)
+                print(f"Monster Moves: {monMoves}")
                 eval = self.evalState(afterMonsterProbMove, monEvents, playerEvents)
                 # print(eval, "postmonmove: ", self.getMonCoords(afterMonsterProbMove))
                 prob = 1/9 # self.calcMoveProb(sensedWorldTemp, monMoves, playerCoords)
@@ -508,3 +518,4 @@ class TestCharacter(CharacterEntity):
         # self.doAct(world, bestAct)
         self.doRealAction(world, bestAct)
         monsterMovedWorld = self.cancelCharacterAndMonsterMovement(copyWorld)
+        #'''
