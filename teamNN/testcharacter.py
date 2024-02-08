@@ -166,16 +166,27 @@ class TestCharacter(CharacterEntity):
         #weights for score change based on values :)
         monsterDistWeight = 3
         exitDisWeight = 1
+        monContribution = 0
 
         #getting score for monsters
         for monsterLoc in monsterLocs:
             #calculating the Euclidean between the monster and BM
-            disMonToBMan = math.sqrt((monsterLoc[0]- coordsBM[0])**2 + (monsterLoc[1]- coordsBM[1])**2) #distance from BM to Monster
-            stateScore -= 10**(monsterDistWeight-disMonToBMan)
+            #disMonToBMan = math.sqrt((monsterLoc[0]- coordsBM[0])**2 + (monsterLoc[1]- coordsBM[1])**2) #distance from BM to Monster
+            disMonToBman = len(self.aStar(self.getWorld(world), (coordsBM[1], coordsBM[0]), (monsterLoc[1], monsterLoc[0])))
+            monContribution -= 10**(monsterDistWeight-disMonToBman)
+
+        # print(f"Eval From Monsters:\t{monContribution}")
 
         #getting score from BM to exit (#calculating the A* length between the exit and BM)
         exitToBM = len(self.aStar(self.getWorld(world), (coordsBM[1], coordsBM[0]), (exitLoc[1], exitLoc[0])))
-        stateScore -= exitToBM * exitDisWeight
+        
+        # stateScore -= exitToBM * exitDisWeight + monContribution
+        #
+        exitContribution = 21 - exitToBM
+
+        # print(f"Eval From Exit Dist:\t{exitContribution}")
+        stateScore = exitContribution + monContribution
+        # print(f"Total State Evaluation:\t{stateScore}")
 
         #will add score for bombs later.............
 
@@ -291,15 +302,6 @@ class TestCharacter(CharacterEntity):
     def getMonActions(self, world):
         prob = numMonsters*np.zeros((9,9))
         pass
-
-
-    # def doAct(self, world: World, playerAction: int, monsterActions: tuple[int]) -> World:
-    #     #Do Monsters Actions
-    #     for i,monsterAction in enumerate(monsterActions):
-    #         (dx,dy) = self.actionToDxDy()
-    #     # newWorld = 
-    #     #Do Players Actions
-    #     pass
 
     #simulated Action 
     def doAct(self, world: World, playerAction: int) -> World:
@@ -460,7 +462,7 @@ class TestCharacter(CharacterEntity):
         numMonActions = 9
         maxActEval = -10000000
         bestAct = 0
-        numMonsters = 1
+        numMonsters = len(self.getMonsters(world))
 
 
         (monsterMovedWorld, events) = copyWorld.next()
@@ -483,6 +485,7 @@ class TestCharacter(CharacterEntity):
                 #World after monster has done probabailstic Action
                 # print("premonmove: ", self.getMonCoords(copyAfterPlayerMove))
                 (afterMonsterProbMove, monEvents) = self.doMonsterActs(copyAfterPlayerMove, monMoves)
+                # print(f"Monsters Move: \t{monMoves}")
                 eval = self.evalState(afterMonsterProbMove, monEvents, playerEvents)
                 # print(eval, "postmonmove: ", self.getMonCoords(afterMonsterProbMove))
                 prob = 1/9 # self.calcMoveProb(sensedWorldTemp, monMoves, playerCoords)
