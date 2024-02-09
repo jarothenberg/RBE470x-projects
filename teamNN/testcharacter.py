@@ -1,6 +1,6 @@
 # This is necessary to find the main code
 from itertools import product
-from queue import PriorityQueue
+from queue import PriorityQueue, LifoQueue, Queue
 import sys
 sys.path.insert(0, '../bomberman')
 # Import necessary stuff
@@ -11,11 +11,17 @@ from world import World
 import math
 from events import Event
 import time
+import heapq
+
 
 
 class TestCharacter(CharacterEntity):
 
     astarwoopie = 0
+    astarCount = 0 
+    avePath = 0 
+    nodesVisited = 0
+    showCount = 0 
 
     def walkableNeighbors(self, world: World, coords):
         x = coords[0]
@@ -77,28 +83,74 @@ class TestCharacter(CharacterEntity):
 
         return exitC 
 
-    def aStar(self, world: World, startCoords, goalCoords):
+    def aStar(self, world: World, startCoords, goalCoords, show = False):
+        self.astarCount += 1
         startTime = time.time()
         frontier = PriorityQueue()
-        frontier.put(startCoords, 0)
+        # frontier = []
+        # frontier = Queue()
+        frontier.put((0, startCoords))
+        # frontier.put(startCoords, 0)
+        # heapq.heappush(frontier, (0, startCoords))
         came_from = {}
         cost_so_far = {}
         came_from[startCoords] = None
         cost_so_far[startCoords] = 0
 
+        chara = self.getCharacteres(world)[0]
+            
+        # heapq.heappush(customers, (2, "Harry"))
+
         while not frontier.empty():
-            current = frontier.get()
+        # while len(frontier) > 0:    
+            if(show):
+                pass
+                # print(f"Front {frontier}")
+                # print(f"Front {frontier.queue}")
+            current = frontier.get()[1]
+            # current = heapq.heappop(frontier)[1]
+
+            # print("CURR", current)
+
+            if(show):
+                # pass
+                # print(f"Visisted, CURR \t{current}")
+                chara.set_cell_color(current[0], current[1], Fore.RED + Back.RED)
+                # world.printit() 
+                # time.sleep(0.1)
 
             if current == goalCoords:
                 break
             
             for next in self.walkableNeighbors(world, current):
-                new_cost = cost_so_far[current] + self.cost(current, next)
+                new_cost = cost_so_far[current] + 1#self.cost(current, next)
                 if next not in cost_so_far or new_cost < cost_so_far[next]:
+                    self.nodesVisited += 1
+
+                   # '''
+                    if(show):
+                        pass
+                        # print("SHOW", next, goalCoords)
+                        # chara.set_cell_color(next[0], next[1], Fore.RED + Back.GREEN)
+                        # chara.set_cell_color(current[0], current[1], Fore.RED + Back.YELLOW)
+                        # world.printit()
+                        # time.sleep(0.1)
+                        # chara.set_cell_color(current[0], current[1], Fore.RED + Back.GREEN)
+                        self.showCount += 1
+                    #'''
+                    
                     cost_so_far[next] = new_cost
                     priority = new_cost + self.heuristic(goalCoords, next)
-                    frontier.put(next, priority)
+                    # print(priority)
+                    frontier.put((priority, next))
+                    # frontier.put(next, priority)
+                    # heapq.heappush(frontier, (priority, next))
                     came_from[next] = current
+
+                    if(show):
+                        pass
+                        # print(f"Added \t{next} with Score \t{priority}")
+                        # time.sleep(0.1)
 
         step = goalCoords
         finalPath = [step]
@@ -106,11 +158,17 @@ class TestCharacter(CharacterEntity):
             finalPath.insert(0, came_from[step])
             step = came_from[step]
         self.astarwoopie += time.time() - startTime
-        print(len(finalPath))
+        # print(len(finalPath))
+        self.avePath += len(finalPath)
+
+        if(show):
+            print("A* WOrld")
+            world.printit()
+
         return finalPath
 
     #3 A*
-    def evalState(self, world: World, monEvents: list[Event], playerEvents: list[Event]): #this will return a "score" which will tell you how desireable the state is
+    def evalState(self, world: World, monEvents: list[Event], playerEvents: list[Event], debug = False): #this will return a "score" which will tell you how desireable the state is
         stateScore = 0  #return score
         coordsBM = self.bomberManCoords(world) #coords for BomberMan
         for event in playerEvents:
@@ -137,7 +195,8 @@ class TestCharacter(CharacterEntity):
             disMonToBman = len(self.aStar(world, (coordsBM[0], coordsBM[1]), (monsterLoc[0], monsterLoc[1])))
             monContribution -= 10**(monsterDistWeight-disMonToBman)
 
-        exitToBM = len(self.aStar(world, (coordsBM[0], coordsBM[1]), (exitLoc[0], exitLoc[1])))
+        show = debug
+        exitToBM = len(self.aStar(world, (coordsBM[0], coordsBM[1]), (exitLoc[0], exitLoc[1]), show))
         
         exitContribution = 21 - exitToBM
 
@@ -401,9 +460,24 @@ class TestCharacter(CharacterEntity):
             self.move(0,0)
             self.place_bomb()
         
+    # def do(self, wrld):
+        # for x in range(wrld.width()):
+            # self.set_cell_color(x,0, Fore.RED + Back.GREEN)
 
+    # '''
     def do(self, world):
+        self.tiles = {}
+        self.set_cell_color(1,1, Fore.BLACK + Back.RED)
+        # self.set_cell_color(1,1, Fore.BLACK + Back.RED)
+        for x in range(world.width()):
+            self.set_cell_color(x,1, Fore.BLACK + Back.RED)
+            # self.set_cell_color(2,2, Fore.BLUE + Back.RED)
+        print("WW")
         self.astarwoopie = 0
+        self.astarCount = 0
+        self.avePath = 0
+        self.nodesVisited = 0
+        self.showCount = 0
         # Your code here
         copyWorld = world.from_world(world)
         # playerActions = self.validActions(world) # 0-9
@@ -422,6 +496,7 @@ class TestCharacter(CharacterEntity):
         # (monsterMovedWorld, events) = monsterMovedWorld.next()
         # monsterMovedWorld.printit()
         #10 Runs
+        i = 0
         for playerAct in playerActions:
             actEval = 0 # Sum total of this Chance Node
             # print("69SHIT: ", self.bomberManCoords(monsterMovedWorld))
@@ -432,16 +507,28 @@ class TestCharacter(CharacterEntity):
 
             allMoves = product(*(range(numMonActions) for _ in range(numMonsters)))
             #9*9=81 Runs
+            
+            j = 0 
+            #
             for monMoves in allMoves:
                 copyAfterPlayerMove = afterPlayerMoveWorld.from_world(afterPlayerMoveWorld)
                 #World after monster has done probabailstic Action
                 # print("premonmove: ", self.getMonCoords(copyAfterPlayerMove))
                 (afterMonsterProbMove, monEvents) = self.doMonsterActs(copyAfterPlayerMove, monMoves)
                 # print(f"Monsters Move: \t{monMoves}")
-                eval = self.evalState(afterMonsterProbMove, monEvents, playerEvents)
+                # print(i)
+                debug = (i == 0 and j == 0)
+                if(debug):
+                    print("Debug")
+                # print(debug)
+                eval = self.evalState(afterMonsterProbMove, monEvents, playerEvents, debug)
                 # print(eval, "postmonmove: ", self.getMonCoords(afterMonsterProbMove))
                 prob = 1/9 # self.calcMoveProb(sensedWorldTemp, monMoves, playerCoords)
                 actEval += eval*prob 
+
+                j += 1
+
+            i += 1
         #        
             print(f"Action: {playerAct}, Score: {actEval}, Coords: {self.bomberManCoords(afterPlayerMoveWorld)}")
 
@@ -461,6 +548,11 @@ class TestCharacter(CharacterEntity):
 
 
         # self.doAct(world, bestAct)
-        print(self.astarwoopie)
+        self.avePath /= self.astarCount
+        print(f"Sum Astar {self.astarwoopie}, Num Astar {self.astarCount}, Ave path {self.avePath}, Nodes Visited {self.nodesVisited}, SHow {self.showCount}")
         self.doRealAction(world, bestAct)
         monsterMovedWorld = self.cancelCharacterAndMonsterMovement(copyWorld)
+        # self.tiles = {}
+        self.set_cell_color(1,1, Fore.BLACK + Back.RED)
+        #
+    #'''

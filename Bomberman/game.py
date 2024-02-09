@@ -119,8 +119,8 @@ class Game:
     ###################
 
     def draw(self):
-        # pass
-        self.world.printit()
+        pass
+        # self.world.printit()
 
     def done(self):
         # User Exit
