@@ -1,6 +1,3 @@
-<<<<<<< Updated upstream
-g
-=======
 # This is necessary to find the main code
 from itertools import product
 from queue import PriorityQueue
@@ -472,4 +469,3 @@ class TestCharacter(CharacterEntity):
         print(self.astarTime,self.searchedNodes, self.searchedNodes/self.astarTime)
         self.doRealAction(world, bestAct)
         monsterMovedWorld = self.cancelCharacterAndMonsterMovement(copyWorld)
->>>>>>> Stashed changes
