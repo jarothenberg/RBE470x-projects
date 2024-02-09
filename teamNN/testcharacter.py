@@ -15,8 +15,7 @@ import time
 
 class TestCharacter(CharacterEntity):
 
-    astarTime = 0
-    searchedNodes = 0
+    astarwoopie = 0
 
     def walkableNeighbors(self, world: World, coords):
         x = coords[0]
@@ -37,7 +36,7 @@ class TestCharacter(CharacterEntity):
             if x-1 >= 0 and not world.wall_at(x-1, y-1):
                 neighbors.append((x-1, y-1))
         if x+1 < world.width() and not world.wall_at(x+1, y):
-            neighbors.append((x+1, y))
+            neighbors.append((x+1, y)) 
         if x-1 >= 0 and not world.wall_at(x-1,y):
             neighbors.append((x-1,y))
         return neighbors
@@ -48,7 +47,7 @@ class TestCharacter(CharacterEntity):
         nextX = next[0]
         nextY = next[1]
 
-        # distance = (((nextY - currentY)**2)+(nextX - currentX)**2)**0.5
+        #distance = (((nextY - currentY)**2)+(nextX - currentX)**2)**0.5
         distance = 1
         return distance
     
@@ -59,6 +58,7 @@ class TestCharacter(CharacterEntity):
         goalCoordsY = goalCoords[1]
 
         distance = (((goalCoordsY - coordsY)**2)+(goalCoordsX - coordsX)**2)**0.5
+        #distance = 1
         return distance
 
     def bomberManCoords(self, world):
@@ -82,15 +82,18 @@ class TestCharacter(CharacterEntity):
     def aStar(self, world: World, startCoords, goalCoords):
         startTime = time.time()
         frontier = PriorityQueue()
-        frontier.put(startCoords, 0)
+        #frontier.put(startCoords, 0)
+
+        frontier.put((0,startCoords))
+
         came_from = {}
         cost_so_far = {}
         came_from[startCoords] = None
         cost_so_far[startCoords] = 0
-        nodesSearched = 0
 
         while not frontier.empty():
-            current = frontier.get()
+            current = frontier.get()[1]
+
 
             if current == goalCoords:
                 break
@@ -100,17 +103,17 @@ class TestCharacter(CharacterEntity):
                 if next not in cost_so_far or new_cost < cost_so_far[next]:
                     cost_so_far[next] = new_cost
                     priority = new_cost + self.heuristic(goalCoords, next)
-                    frontier.put(next, priority)
+                    frontier.put((priority, next))
+
                     came_from[next] = current
-                    nodesSearched += 1
-                    
+
         step = goalCoords
         finalPath = [step]
         while finalPath[0] != startCoords:
             finalPath.insert(0, came_from[step])
             step = came_from[step]
-        self.astarTime += time.time() - startTime
-        self.searchedNodes += nodesSearched
+        self.astarwoopie += time.time() - startTime
+        #print(len(finalPath))
         return finalPath
 
     #3 A*
@@ -354,7 +357,7 @@ class TestCharacter(CharacterEntity):
         monsters = self.getMonsters(world)
         numCharacters = len(characters) 
 
-        # print(monsters)
+        print(monsters)
 
         for i, actionMovement in enumerate(actions):
             if(i < numCharacters):
@@ -407,8 +410,7 @@ class TestCharacter(CharacterEntity):
         
 
     def do(self, world):
-        self.astarTime = 0
-        self.searchedNodes = 0
+        self.astarwoopie = 0
         # Your code here
         copyWorld = world.from_world(world)
         # playerActions = self.validActions(world) # 0-9
@@ -448,7 +450,7 @@ class TestCharacter(CharacterEntity):
                 prob = 1/9 # self.calcMoveProb(sensedWorldTemp, monMoves, playerCoords)
                 actEval += eval*prob 
         #        
-            # print(f"Action: {playerAct}, Score: {actEval}, Coords: {self.bomberManCoords(afterPlayerMoveWorld)}")
+            print(f"Action: {playerAct}, Score: {actEval}, Coords: {self.bomberManCoords(afterPlayerMoveWorld)}")
 
             if actEval > maxActEval:
                 maxActEval = actEval
@@ -466,6 +468,6 @@ class TestCharacter(CharacterEntity):
 
 
         # self.doAct(world, bestAct)
-        print(self.astarTime,self.searchedNodes, self.searchedNodes/self.astarTime)
+        print(self.astarwoopie)
         self.doRealAction(world, bestAct)
         monsterMovedWorld = self.cancelCharacterAndMonsterMovement(copyWorld)
