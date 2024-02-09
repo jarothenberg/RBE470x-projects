@@ -10,83 +10,51 @@ from colorama import Fore, Back
 from world import World
 import math
 from events import Event
+import time
+
 
 class TestCharacter(CharacterEntity):
 
-    def getWorld(self, world):
-        worldArray = np.array([[" " for x in range(world.width())] for y in range(world.height())])
+    astarwoopie = 0
 
-        for y in range(world.height()):
-            for x in range(world.width()):
-                if world.characters_at(x,y):
-                    for c in world.characters_at(x,y):
-                        worldArray[y][x] = "C"
-                elif world.monsters_at(x,y):
-                    for m in world.monsters_at(x,y):
-                        worldArray[y][x] = "M"
-                elif world.exit_at(x,y):
-                    worldArray[y][x] = "#"
-                elif world.bomb_at(x,y):
-                    worldArray[y][x] = "@"
-                elif world.explosion_at(x,y):
-                    worldArray[y][x] = "*"
-                elif world.wall_at(x,y):
-                    worldArray[y][x] = "W"
-                else:
-                    tile = False
-                    for k,clist in world.characters.items():
-                        for c in clist:
-                            if c.tiles.get((x,y)):
-                                worldArray[y][x] = c.tiles[(x,y)] + "."
-                                tile = True
-                                break
-        return worldArray
-    
-    def isCellWalkable(self, worldArray, coords):
-        y = coords[0]
-        x = coords[1]
-        if worldArray[y][x] == "W":
-            return False
-        return True
-
-    def walkableNeighbors(self, worldArray, coords):
-        y = coords[0]
-        x = coords[1]
+    def walkableNeighbors(self, world: World, coords):
+        x = coords[0]
+        y = coords[1]
         neighbors = []
-        if y+1 < len(worldArray):
-            if self.isCellWalkable(worldArray, (y+1, x)):
-                neighbors.append((y+1, x))
-            if x+1 < len(worldArray[0]) and self.isCellWalkable(worldArray, (y+1, x+1)):
-                neighbors.append((y+1, x+1))
-            if x-1 >= 0 and self.isCellWalkable(worldArray, (y+1, x-1)):
-                neighbors.append((y+1, x-1))
+        if y+1 < world.height():
+            if not world.wall_at(x,y+1):
+                neighbors.append((x,y+1))
+            if x+1 < world.width() and not world.wall_at(x+1,y+1):
+                neighbors.append((x+1,y+1))
+            if x-1 >= 0 and not world.wall_at(x-1, y+1):
+                neighbors.append((x-1, y+1))
         if y-1 >= 0:
-            if self.isCellWalkable(worldArray, (y-1, x)):
-                neighbors.append((y-1, x))
-            if x+1 < len(worldArray[0]) and self.isCellWalkable(worldArray, (y-1, x+1)):
-                neighbors.append((y-1, x+1))
-            if x-1 >= 0 and self.isCellWalkable(worldArray, (y-1, x-1)):
-                neighbors.append((y-1, x-1))
-        if x+1 < len(worldArray[0]) and self.isCellWalkable(worldArray, (y, x+1)):
-            neighbors.append((y, x+1))
-        if x-1 >= 0 and self.isCellWalkable(worldArray, (y, x-1)):
-            neighbors.append((y, x-1))
+            if not world.wall_at(x,y-1):
+                neighbors.append((x,y-1))
+            if x+1 < world.width() and not world.wall_at(x+1, y-1):
+                neighbors.append((x+1, y-1))
+            if x-1 >= 0 and not world.wall_at(x-1, y-1):
+                neighbors.append((x-1, y-1))
+        if x+1 < world.width() and not world.wall_at(x+1, y):
+            neighbors.append((x+1, y))
+        if x-1 >= 0 and not world.wall_at(x-1,y):
+            neighbors.append((x-1,y))
         return neighbors
     
     def cost(self, current, next):
-        currentY = current[0]
-        currentX = current[1]
-        nextY = next[0]
-        nextX = next[1]
+        currentX = current[0]
+        currentY = current[1]
+        nextX = next[0]
+        nextY = next[1]
 
         distance = (((nextY - currentY)**2)+(nextX - currentX)**2)**0.5
         return distance
     
     def heuristic(self, goalCoords, coords):
-        coordsY = coords[0]
-        coordsX = coords[1]
-        goalCoordsY = goalCoords[0]
-        goalCoordsX = goalCoords[1]
+        coordsX = coords[0]
+        coordsY = coords[1]
+        goalCoordsX = goalCoords[0]
+        goalCoordsY = goalCoords[1]
 
         distance = (((goalCoordsY - coordsY)**2)+(goalCoordsX - coordsX)**2)**0.5
         return distance
@@ -109,7 +77,8 @@ class TestCharacter(CharacterEntity):
 
         return exitC 
 
-    def aStar(self, worldArray, startCoords, goalCoords):
+    def aStar(self, world: World, startCoords, goalCoords):
+        startTime = time.time()
         frontier = PriorityQueue()
         frontier.put(startCoords, 0)
         came_from = {}
@@ -123,7 +92,7 @@ class TestCharacter(CharacterEntity):
             if current == goalCoords:
                 break
             
-            for next in self.walkableNeighbors(worldArray, current):
+            for next in self.walkableNeighbors(world, current):
                 new_cost = cost_so_far[current] + self.cost(current, next)
                 if next not in cost_so_far or new_cost < cost_so_far[next]:
                     cost_so_far[next] = new_cost
@@ -136,15 +105,13 @@ class TestCharacter(CharacterEntity):
         while finalPath[0] != startCoords:
             finalPath.insert(0, came_from[step])
             step = came_from[step]
+        self.astarwoopie += time.time() - startTime
+        print(len(finalPath))
         return finalPath
 
-
+    #3 A*
     def evalState(self, world: World, monEvents: list[Event], playerEvents: list[Event]): #this will return a "score" which will tell you how desireable the state is
-        #implement A* in the eval 
-        #or control the depth 
         stateScore = 0  #return score
-        #stateProb = 0
-        #return [stateScore, stateProb]
         coordsBM = self.bomberManCoords(world) #coords for BomberMan
         for event in playerEvents:
             if event.tpe == Event.CHARACTER_FOUND_EXIT:
@@ -156,13 +123,10 @@ class TestCharacter(CharacterEntity):
                 return 1000000
             elif event.tpe == Event.CHARACTER_KILLED_BY_MONSTER:
                 return -1000000
-        # character = self.getCharacteres(world)[0]
-        # coordsBM = [character.x, character.y]
         
         monsterLocs = self.getMonCoords(world) # coords for the monter
-        exitLoc = self.exitCoords(world) # coords for exit
-        #worldScore = world.scores[self] #is a dictionary { character_name : score } that contains the score of every character in this case getting the score of the character and intergrating it to the function
-        
+        exitLoc = self.exitCoords(world) # coords for exit   
+
         #weights for score change based on values :)
         monsterDistWeight = 3
         exitDisWeight = 1
@@ -170,18 +134,11 @@ class TestCharacter(CharacterEntity):
 
         #getting score for monsters
         for monsterLoc in monsterLocs:
-            #calculating the Euclidean between the monster and BM
-            #disMonToBMan = math.sqrt((monsterLoc[0]- coordsBM[0])**2 + (monsterLoc[1]- coordsBM[1])**2) #distance from BM to Monster
-            disMonToBman = len(self.aStar(self.getWorld(world), (coordsBM[1], coordsBM[0]), (monsterLoc[1], monsterLoc[0])))
+            disMonToBman = len(self.aStar(world, (coordsBM[0], coordsBM[1]), (monsterLoc[0], monsterLoc[1])))
             monContribution -= 10**(monsterDistWeight-disMonToBman)
 
-        # print(f"Eval From Monsters:\t{monContribution}")
-
-        #getting score from BM to exit (#calculating the A* length between the exit and BM)
-        exitToBM = len(self.aStar(self.getWorld(world), (coordsBM[1], coordsBM[0]), (exitLoc[1], exitLoc[0])))
+        exitToBM = len(self.aStar(world, (coordsBM[0], coordsBM[1]), (exitLoc[0], exitLoc[1])))
         
-        # stateScore -= exitToBM * exitDisWeight + monContribution
-        #
         exitContribution = 21 - exitToBM
 
         # print(f"Eval From Exit Dist:\t{exitContribution}")
@@ -264,13 +221,13 @@ class TestCharacter(CharacterEntity):
 
         return prob
 
+    #Currently not being used. Maybe delete later
     def validActions(self, world):
         prob = np.zeros((10,1))
         pass
 
     def getMonsters(self,wrld):
         monsters = []
-
         for x in range(wrld.width()):
             for y in range(wrld.height()):
                 #+= appends empty lists and any list given
@@ -280,12 +237,8 @@ class TestCharacter(CharacterEntity):
                     monsters += monsterAt
         return monsters
 
-    # def getEntities(self, world, entityName = "monster"):
-        # pass
-
     def getCharacteres(self,wrld):
         characters = []
-
         for x in range(wrld.width()):
             for y in range(wrld.height()):
                 #+= appends empty lists and any list given
@@ -299,13 +252,13 @@ class TestCharacter(CharacterEntity):
         allMonsters = self.getMonsters(world)
         return [(monster.x, monster.y) for monster in allMonsters]
 
+    #currently not being used maybe delete later?
     def getMonActions(self, world):
         prob = numMonsters*np.zeros((9,9))
         pass
 
     #simulated Action 
     def doAct(self, world: World, playerAction: int) -> World:
-        # print("0SHIT: ", self.bomberManCoords(world))
         characters = self.getCharacteres(world)
         if(len(characters) > 0):
             character = characters[0] 
@@ -320,11 +273,9 @@ class TestCharacter(CharacterEntity):
                 character.place_bomb()
         
         (newWorld, events) = world.next()
-        # print("1SHIT: ", self.bomberManCoords(newWorld))
         return (newWorld, events) 
      
     def doMonsterActs(self, world: World, monsterActions: tuple[int]) -> World:
-        # print("0SHIT: ", self.bomberManCoords(world))
         monsters = self.getMonsters(world)
         if(len(monsters) > 0):
             for i, monster in enumerate(monsters):
@@ -335,7 +286,6 @@ class TestCharacter(CharacterEntity):
                     monster.move(0,0)
         
         (newWorld, events) = world.next()
-        # print("1SHIT: ", self.bomberManCoords(newWorld))
         return (newWorld, events) 
 
 
@@ -453,6 +403,7 @@ class TestCharacter(CharacterEntity):
         
 
     def do(self, world):
+        self.astarwoopie = 0
         # Your code here
         copyWorld = world.from_world(world)
         # playerActions = self.validActions(world) # 0-9
@@ -464,13 +415,13 @@ class TestCharacter(CharacterEntity):
         bestAct = 0
         numMonsters = len(self.getMonsters(world))
 
-
         (monsterMovedWorld, events) = copyWorld.next()
         # monsterMovedWorld.printit()
         #After the monsters Have done their determined action
         monsterMovedWorld = self.cancelCharacterAndMonsterMovement(copyWorld)
         # (monsterMovedWorld, events) = monsterMovedWorld.next()
         # monsterMovedWorld.printit()
+        #10 Runs
         for playerAct in playerActions:
             actEval = 0 # Sum total of this Chance Node
             # print("69SHIT: ", self.bomberManCoords(monsterMovedWorld))
@@ -480,6 +431,7 @@ class TestCharacter(CharacterEntity):
             afterPlayerMoveWorld = self.cancelCharacterAndMonsterMovement(afterPlayerMoveWorld)
 
             allMoves = product(*(range(numMonActions) for _ in range(numMonsters)))
+            #9*9=81 Runs
             for monMoves in allMoves:
                 copyAfterPlayerMove = afterPlayerMoveWorld.from_world(afterPlayerMoveWorld)
                 #World after monster has done probabailstic Action
@@ -509,5 +461,6 @@ class TestCharacter(CharacterEntity):
 
 
         # self.doAct(world, bestAct)
+        print(self.astarwoopie)
         self.doRealAction(world, bestAct)
         monsterMovedWorld = self.cancelCharacterAndMonsterMovement(copyWorld)
