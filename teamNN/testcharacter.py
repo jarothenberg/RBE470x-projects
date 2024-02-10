@@ -1,6 +1,6 @@
 # This is necessary to find the main code
 from itertools import product
-from queue import PriorityQueue, LifoQueue, Queue
+from queue import PriorityQueue
 import sys
 sys.path.insert(0, '../bomberman')
 # Import necessary stuff
@@ -11,17 +11,11 @@ from world import World
 import math
 from events import Event
 import time
-import heapq
-
 
 
 class TestCharacter(CharacterEntity):
 
     astarwoopie = 0
-    astarCount = 0 
-    avePath = 0 
-    nodesVisited = 0
-    showCount = 0 
 
     def walkableNeighbors(self, world: World, coords):
         x = coords[0]
@@ -42,7 +36,7 @@ class TestCharacter(CharacterEntity):
             if x-1 >= 0 and not world.wall_at(x-1, y-1):
                 neighbors.append((x-1, y-1))
         if x+1 < world.width() and not world.wall_at(x+1, y):
-            neighbors.append((x+1, y))
+            neighbors.append((x+1, y)) 
         if x-1 >= 0 and not world.wall_at(x-1,y):
             neighbors.append((x-1,y))
         return neighbors
@@ -53,7 +47,8 @@ class TestCharacter(CharacterEntity):
         nextX = next[0]
         nextY = next[1]
 
-        distance = (((nextY - currentY)**2)+(nextX - currentX)**2)**0.5
+        #distance = (((nextY - currentY)**2)+(nextX - currentX)**2)**0.5
+        distance = 1
         return distance
     
     def heuristic(self, goalCoords, coords):
@@ -63,6 +58,7 @@ class TestCharacter(CharacterEntity):
         goalCoordsY = goalCoords[1]
 
         distance = (((goalCoordsY - coordsY)**2)+(goalCoordsX - coordsX)**2)**0.5
+        #distance = 1
         return distance
 
     def bomberManCoords(self, world):
@@ -83,74 +79,33 @@ class TestCharacter(CharacterEntity):
 
         return exitC 
 
-    def aStar(self, world: World, startCoords, goalCoords, show = False):
-        self.astarCount += 1
+    def aStar(self, world: World, startCoords, goalCoords):
         startTime = time.time()
         frontier = PriorityQueue()
-        # frontier = []
-        # frontier = Queue()
-        frontier.put((0, startCoords))
-        # frontier.put(startCoords, 0)
-        # heapq.heappush(frontier, (0, startCoords))
+        #frontier.put(startCoords, 0)
+
+        frontier.put((0,startCoords))
+
         came_from = {}
         cost_so_far = {}
         came_from[startCoords] = None
         cost_so_far[startCoords] = 0
 
-        chara = self.getCharacteres(world)[0]
-            
-        # heapq.heappush(customers, (2, "Harry"))
-
         while not frontier.empty():
-        # while len(frontier) > 0:    
-            if(show):
-                pass
-                # print(f"Front {frontier}")
-                # print(f"Front {frontier.queue}")
             current = frontier.get()[1]
-            # current = heapq.heappop(frontier)[1]
 
-            # print("CURR", current)
-
-            if(show):
-                # pass
-                # print(f"Visisted, CURR \t{current}")
-                chara.set_cell_color(current[0], current[1], Fore.RED + Back.RED)
-                # world.printit() 
-                # time.sleep(0.1)
 
             if current == goalCoords:
                 break
             
             for next in self.walkableNeighbors(world, current):
-                new_cost = cost_so_far[current] + 1#self.cost(current, next)
+                new_cost = cost_so_far[current] + self.cost(current, next)
                 if next not in cost_so_far or new_cost < cost_so_far[next]:
-                    self.nodesVisited += 1
-
-                   # '''
-                    if(show):
-                        pass
-                        # print("SHOW", next, goalCoords)
-                        # chara.set_cell_color(next[0], next[1], Fore.RED + Back.GREEN)
-                        # chara.set_cell_color(current[0], current[1], Fore.RED + Back.YELLOW)
-                        # world.printit()
-                        # time.sleep(0.1)
-                        # chara.set_cell_color(current[0], current[1], Fore.RED + Back.GREEN)
-                        self.showCount += 1
-                    #'''
-                    
                     cost_so_far[next] = new_cost
                     priority = new_cost + self.heuristic(goalCoords, next)
-                    # print(priority)
                     frontier.put((priority, next))
-                    # frontier.put(next, priority)
-                    # heapq.heappush(frontier, (priority, next))
-                    came_from[next] = current
 
-                    if(show):
-                        pass
-                        # print(f"Added \t{next} with Score \t{priority}")
-                        # time.sleep(0.1)
+                    came_from[next] = current
 
         step = goalCoords
         finalPath = [step]
@@ -158,29 +113,23 @@ class TestCharacter(CharacterEntity):
             finalPath.insert(0, came_from[step])
             step = came_from[step]
         self.astarwoopie += time.time() - startTime
-        # print(len(finalPath))
-        self.avePath += len(finalPath)
-
-        if(show):
-            print("A* WOrld")
-            world.printit()
-
+        #print(len(finalPath))
         return finalPath
 
     #3 A*
-    def evalState(self, world: World, monEvents: list[Event], playerEvents: list[Event], debug = False): #this will return a "score" which will tell you how desireable the state is
+    def evalState(self, world: World, events: list[Event]): #this will return a "score" which will tell you how desireable the state is
         stateScore = 0  #return score
         coordsBM = self.bomberManCoords(world) #coords for BomberMan
-        for event in playerEvents:
+        for event in events:
             if event.tpe == Event.CHARACTER_FOUND_EXIT:
                 return 1000000
             if event.tpe == Event.CHARACTER_KILLED_BY_MONSTER:
                 return -1000000
-        for event in monEvents:
-            if event.tpe == Event.CHARACTER_FOUND_EXIT:
-                return 1000000
-            elif event.tpe == Event.CHARACTER_KILLED_BY_MONSTER:
-                return -1000000
+        # for event in monEvents:
+        #     if event.tpe == Event.CHARACTER_FOUND_EXIT:
+        #         return 1000000
+        #     elif event.tpe == Event.CHARACTER_KILLED_BY_MONSTER:
+        #         return -1000000
         
         monsterLocs = self.getMonCoords(world) # coords for the monter
         exitLoc = self.exitCoords(world) # coords for exit   
@@ -195,9 +144,18 @@ class TestCharacter(CharacterEntity):
             disMonToBman = len(self.aStar(world, (coordsBM[0], coordsBM[1]), (monsterLoc[0], monsterLoc[1])))
             monContribution -= 10**(monsterDistWeight-disMonToBman)
 
-        show = debug
-        exitToBM = len(self.aStar(world, (coordsBM[0], coordsBM[1]), (exitLoc[0], exitLoc[1]), show))
+
+        sixCord = (1,1)
+        sevenCord = (1,2)
+        sixLen   = len(self.aStar(world, (sixCord[0], sixCord[1]), (exitLoc[0], exitLoc[1])))
+        sevenLen = len(self.aStar(world, (sevenCord[0], sevenCord[1]), (exitLoc[0], exitLoc[1])))
+
+        print(sixLen,sevenLen)
+
+        exitToBM = len(self.aStar(world, (coordsBM[0], coordsBM[1]), (exitLoc[0], exitLoc[1])))
         
+        print(f"exitToBM {exitToBM}, {coordsBM}")
+
         exitContribution = 21 - exitToBM
 
         # print(f"Eval From Exit Dist:\t{exitContribution}")
@@ -205,6 +163,8 @@ class TestCharacter(CharacterEntity):
         # print(f"Total State Evaluation:\t{stateScore}")
 
         #will add score for bombs later.............
+
+        print(f"STATE SCORE {stateScore}")
 
         return stateScore
 
@@ -460,99 +420,111 @@ class TestCharacter(CharacterEntity):
             self.move(0,0)
             self.place_bomb()
         
-    # def do(self, wrld):
-        # for x in range(wrld.width()):
-            # self.set_cell_color(x,0, Fore.RED + Back.GREEN)
 
-    # '''
-    def do(self, world):
-        self.tiles = {}
-        self.set_cell_color(1,1, Fore.BLACK + Back.RED)
-        # self.set_cell_color(1,1, Fore.BLACK + Back.RED)
-        for x in range(world.width()):
-            self.set_cell_color(x,1, Fore.BLACK + Back.RED)
-            # self.set_cell_color(2,2, Fore.BLUE + Back.RED)
-        print("WW")
-        self.astarwoopie = 0
-        self.astarCount = 0
-        self.avePath = 0
-        self.nodesVisited = 0
-        self.showCount = 0
-        # Your code here
-        copyWorld = world.from_world(world)
-        # playerActions = self.validActions(world) # 0-9
+
+    def expectimaxSearch(self, state: World, depth) -> int: #This returns and action, Which in our case is a number between 0-9
+        #For All Actions
+        #Return Action with Greatest Expected value
+        
         playerActions = range(10)
-        # allMonActions = self.getMonActions(world) # 0-8
-        allMonActions = range(9)
-        numMonActions = 9
-        maxActEval = -10000000
-        bestAct = 0
-        numMonsters = len(self.getMonsters(world))
+        bestAction = 0
+        maxEval = -1000000
+        for playerAction in playerActions:
 
-        (monsterMovedWorld, events) = copyWorld.next()
+            (worldAfterPlayerAction, events) = self.doAct(state, playerAction)
+
+            worldAfterPlayerAction = self.cancelCharacterAndMonsterMovement(worldAfterPlayerAction)
+
+            actionExpectedValue = self.expValue(worldAfterPlayerAction, events, depth - 1)
+
+            if(actionExpectedValue > maxEval):
+                maxEval = actionExpectedValue
+                bestAction = playerAction 
+
+            print(f"Action: {playerAction}, Score: {actionExpectedValue}")
+            print(f"Best Action: {bestAction}")
+
+        return bestAction
+
+    
+    
+    def maxValue(self, state: World, events, depthRemaining: int) -> float: #Returns the Value Of the world
+        #If Terminal State, Then Rerturn Utility
+
+        if(depthRemaining == 0):
+            eval = self.evalState(state, events)
+            # print(f"Max EVAL: {eval}")
+            return eval
+
+        playerActions = range(10)
+        #V = -inf
+        maxEval = -1000000
+        for playerAction in playerActions:
+
+            (worldAfterPlayerAction, newEvents) = self.doAct(state, playerAction)
+
+            worldAfterPlayerAction = self.cancelCharacterAndMonsterMovement(worldAfterPlayerAction)
+
+            #V = Max(Expected Values)
+            actionExpectedValue = self.expValue(worldAfterPlayerAction, newEvents, depthRemaining - 1)
+
+            if(actionExpectedValue > maxEval):  
+                maxEval = actionExpectedValue
+
+        return maxEval 
+
+
+    def probabiltyMonsterAction(self, action: int, state: World) -> float: #Probabilty of the monster making the action
+        return 1/9
+
+    def expValue(self, state: World, events, depthRemaining: int) -> float: #Returns the Utlity Value of the world
+        # print(f"EXP: Depth Remaining{depthRemaining}")
+        
+        if(depthRemaining == 0):
+            eval = self.evalState(state, events)
+            # print(f"EVAL: {eval}")
+            return eval
+
+        #V = 0
+        sumVal = 0
+
+        # monsterActions = range(9)
+        numMonActions = 9
+        numMonsters = len(self.getMonsters(state))
+        allMoves = product(*(range(numMonActions) for _ in range(numMonsters)))
+            #9*9=81 Runs
+        # for monMoves in allMoves:
+        
+        for monsterAction in monsterActions:
+
+            probAction = self.probabiltyMonsterAction(monsterAction, state)
+            if(probAction == 0):
+                continue
+
+            (worldAfterMonsterAction, newEvents) = self.doMonsterActs(state, monsterAction)
+            
+            worldAfterMonsterAction = self.cancelCharacterAndMonsterMovement(worldAfterMonsterAction)
+                
+            maxVal = self.maxValue(worldAfterMonsterAction, newEvents, depthRemaining - 1)
+            # print(f"MV: {maxVal}")
+            sumVal += probAction * maxVal
+           
+
+        return sumVal
+                        
+
+    def do(self, world):
+
+        (monsterMovedWorld, events) = world.next()
         # monsterMovedWorld.printit()
         #After the monsters Have done their determined action
-        monsterMovedWorld = self.cancelCharacterAndMonsterMovement(copyWorld)
-        # (monsterMovedWorld, events) = monsterMovedWorld.next()
-        # monsterMovedWorld.printit()
-        #10 Runs
-        i = 0
-        for playerAct in playerActions:
-            actEval = 0 # Sum total of this Chance Node
-            # print("69SHIT: ", self.bomberManCoords(monsterMovedWorld))
-            copyMonsterMoveWorld = monsterMovedWorld.from_world(monsterMovedWorld)
-            (afterPlayerMoveWorld, playerEvents) = self.doAct(copyMonsterMoveWorld, playerAct)
-            #World After we have done Characters action. 
-            afterPlayerMoveWorld = self.cancelCharacterAndMonsterMovement(afterPlayerMoveWorld)
+        monsterMovedWorld = self.cancelCharacterAndMonsterMovement(monsterMovedWorld)
+       
 
-            allMoves = product(*(range(numMonActions) for _ in range(numMonsters)))
-            #9*9=81 Runs
-            
-            j = 0 
-            #
-            for monMoves in allMoves:
-                copyAfterPlayerMove = afterPlayerMoveWorld.from_world(afterPlayerMoveWorld)
-                #World after monster has done probabailstic Action
-                # print("premonmove: ", self.getMonCoords(copyAfterPlayerMove))
-                (afterMonsterProbMove, monEvents) = self.doMonsterActs(copyAfterPlayerMove, monMoves)
-                # print(f"Monsters Move: \t{monMoves}")
-                # print(i)
-                debug = (i == 0 and j == 0)
-                if(debug):
-                    print("Debug")
-                # print(debug)
-                eval = self.evalState(afterMonsterProbMove, monEvents, playerEvents, debug)
-                # print(eval, "postmonmove: ", self.getMonCoords(afterMonsterProbMove))
-                prob = 1/9 # self.calcMoveProb(sensedWorldTemp, monMoves, playerCoords)
-                actEval += eval*prob 
-
-                j += 1
-
-            i += 1
-        #        
-            print(f"Action: {playerAct}, Score: {actEval}, Coords: {self.bomberManCoords(afterPlayerMoveWorld)}")
-
-            if actEval > maxActEval:
-                maxActEval = actEval
-                bestAct = playerAct
-                
-            print(f"Best Action: {bestAct}")
-        # for monMoves in allMoves:
-        #     #Probability Moster makes all of its 9*9 actions
-        #     #do monster action
-            
-        #     for playerAct in playerActions:
-                #do player action
-                #score. 
-
+        bestAction = self.expectimaxSearch(monsterMovedWorld, 2)
 
 
         # self.doAct(world, bestAct)
-        self.avePath /= self.astarCount
-        print(f"Sum Astar {self.astarwoopie}, Num Astar {self.astarCount}, Ave path {self.avePath}, Nodes Visited {self.nodesVisited}, SHow {self.showCount}")
-        self.doRealAction(world, bestAct)
-        monsterMovedWorld = self.cancelCharacterAndMonsterMovement(copyWorld)
-        # self.tiles = {}
-        self.set_cell_color(1,1, Fore.BLACK + Back.RED)
-        #
-    #'''
+        self.doRealAction(world, bestAction)
+        #'''
+        monsterMovedWorld = self.cancelCharacterAndMonsterMovement(world)
