@@ -16,6 +16,7 @@ from sensed_world import SensedWorld
 class TestCharacter(CharacterEntity):
 
     astarwoopie = 0
+    depth = 0
 
     def walkableNeighbors(self, world: World, coords):
         x = coords[0]
@@ -116,36 +117,28 @@ class TestCharacter(CharacterEntity):
         #print(len(finalPath))
         return finalPath
     
-    def checkEvents(self, events):
+    def checkEvents(self, world, events):
         for event in events:
             if event.tpe == Event.CHARACTER_FOUND_EXIT:
-                return 1000000
+                return world.scores['me']
             if event.tpe == Event.CHARACTER_KILLED_BY_MONSTER or event.tpe == Event.BOMB_HIT_CHARACTER:
                 return -1000000
         return 0
 
     #3 A*
     def evalState(self, world: World, events: list[Event]): #this will return a "score" which will tell you how desireable the state is
-        stateScore = 0  #return score
-        coordsBM = self.bomberManCoords(world) #coords for BomberMan
+        stateScore = 0#-world.scores['me']  #return score
+        # print("checking state score")
 
-        eventScore = self.checkEvents(events)
+        eventScore = self.checkEvents(world, events)
         if(eventScore != 0):
-            return eventScore
+            return eventScore + stateScore
 
-        # for event in events:
-        #     if event.tpe == Event.CHARACTER_FOUND_EXIT:
-        #         return 1000000
-        #     if event.tpe == Event.CHARACTER_KILLED_BY_MONSTER:
-        #         return -1000000
-        # for event in monEvents:
-        #     if event.tpe == Event.CHARACTER_FOUND_EXIT:
-        #         return 1000000
-        #     elif event.tpe == Event.CHARACTER_KILLED_BY_MONSTER:
-        #         return -1000000
-        
-        monsterLocs = self.getMonCoords(world) # coords for the monter
+        coordsBM = self.bomberManCoords(world) #coords for BomberMan
+        # print(coordsBM)
         exitLoc = self.exitCoords(world) # coords for exit   
+        exitToBM = len(self.aStar(world, (coordsBM[0], coordsBM[1]), (exitLoc[0], exitLoc[1])))
+        monsterLocs = self.getMonCoords(world) # coords for the monter
 
         #weights for score change based on values :)
         monsterDistWeight = 2
@@ -157,18 +150,10 @@ class TestCharacter(CharacterEntity):
             disMonToBman = len(self.aStar(world, (coordsBM[0], coordsBM[1]), (monsterLoc[0], monsterLoc[1])))
             monContribution -= 10**(monsterDistWeight-disMonToBman)
             monContribution = 0
-
-
-        # sixCord = (1,1)
-        # sevenCord = (1,2)
-        # sixLen   = len(self.aStar(world, (sixCord[0], sixCord[1]), (exitLoc[0], exitLoc[1])))
-        # sevenLen = len(self.aStar(world, (sevenCord[0], sevenCord[1]), (exitLoc[0], exitLoc[1])))
-
-        # print(sixLen,sevenLen)
-
-        exitToBM = len(self.aStar(world, (coordsBM[0], coordsBM[1]), (exitLoc[0], exitLoc[1])))
-        
-        # print(f"exitToBM {exitToBM}, {coordsBM}")
+            #print(disMonToBman)
+            if disMonToBman <= 2:
+                # print("HI?")
+                return -1000000
 
         exitContribution = 21 - exitToBM
 
@@ -337,6 +322,11 @@ class TestCharacter(CharacterEntity):
 
         return world
 
+    def cancelCharacterMovement(self, world: World) -> World:
+        for character in self.getCharacteres(world):
+            character.move(0,0)
+        return world
+
     def doCharacterAction(self, world: World, action: list[tuple[int, int], list[tuple[int, int]]]) -> World:
         world = self.cancelCharacterAndMonsterMovement(world)
         
@@ -407,7 +397,7 @@ class TestCharacter(CharacterEntity):
         elif(action == 3):
             #ML
             dy = 0; dx = -1
-        elif(action == 4):
+        elif(action == 4 or action == 9):
             #MC
             dy = 0; dx = 0
         elif(action == 5):
@@ -469,6 +459,22 @@ class TestCharacter(CharacterEntity):
             self.place_bomb()
         
 
+    def validPlayerMove(self, act, state):
+        bmCoords = self.bomberManCoords(state)
+        newCoord = tuple(np.array(self.actionToDxDy(act)) + np.array(bmCoords))
+        if newCoord in self.walkableNeighbors(state, bmCoords) or act == 4 or act == 9:
+            return True
+        else:
+            return False
+        
+    def validMonMove(self, acts, state):
+        monCoords = self.getMonCoords(state)  
+        for monNum, monAct in enumerate(acts):
+            monCoord = monCoords[monNum]
+            newCoord = tuple(np.array(self.actionToDxDy(monAct)) + np.array(monCoord))
+            if newCoord not in self.walkableNeighbors(state, monCoord) or monAct == 4:
+                return False
+        return True
 
     def expectimaxSearch(self, state: World, depth) -> int: #This returns and action, Which in our case is a number between 0-9
         #For All Actions
@@ -478,6 +484,8 @@ class TestCharacter(CharacterEntity):
         bestAction = 0
         maxEval = -1000000
         for playerAction in playerActions:
+            if not self.validPlayerMove(playerAction, state):
+                continue
 
             (worldAfterPlayerAction, events) = self.doAct(state, playerAction)
 
@@ -489,8 +497,8 @@ class TestCharacter(CharacterEntity):
                 maxEval = actionExpectedValue
                 bestAction = playerAction 
 
-            # print(f"Action: {playerAction}, Score: {actionExpectedValue}")
-            # print(f"Best Action: {bestAction}")
+            print(f"Action: {playerAction}, Score: {actionExpectedValue}")
+            print(f"Best Action: {bestAction}")
 
         return bestAction
 
@@ -498,19 +506,22 @@ class TestCharacter(CharacterEntity):
     
     def maxValue(self, state: World, events, depthRemaining: int) -> float: #Returns the Value Of the world
         #If Terminal State, Then Rerturn Utility
-        eventScore = self.checkEvents(events)
+        eventScore = self.checkEvents(state, events)
         if(eventScore != 0):
             return eventScore
 
         if(depthRemaining == 0):
+            # print("max value evalstate")
             eval = self.evalState(state, events)
             # print(f"Max EVAL: {eval}")
             return eval
 
         playerActions = range(10)
         #V = -inf
-        maxEval = -1000000
+        maxEval = -1000000000
         for playerAction in playerActions:
+            if not self.validPlayerMove(playerAction, state):
+                continue
 
             (worldAfterPlayerAction, newEvents) = self.doAct(state, playerAction)
 
@@ -550,7 +561,7 @@ class TestCharacter(CharacterEntity):
         numMonsters = len(self.getMonsters(state))
         numMonActions = 9
         return 1/(numMonActions**numMonsters)
-        #'''
+        '''
 
         #Ryan
         
@@ -571,34 +582,53 @@ class TestCharacter(CharacterEntity):
 
         #'''
 
-        ## JACK CODE
+        # JACK CODE
         numMonsters = len(self.getMonsters(state))
         monCoords = self.getMonCoords(state)
         idealActions = [0] * numMonsters
         bmCoord = self.bomberManCoords(state)
+        idealMovesDxDy = [0,0] * numMonsters
+        numMonActions = 9
         for monNum, monCoord in enumerate(monCoords):
             monPath = self.aStar(state, monCoord, tuple(bmCoord))
             nextMonMove = monPath[1]
-            monMoveDxDy = tuple(np.array(nextMonMove) - np.array(monCoord))
-            idealActions[monNum] = self.dxDyToAction(monMoveDxDy)
+            idealMovesDxDy[monNum] = tuple(np.array(nextMonMove) - np.array(monCoord))
+            idealActions[monNum] = self.dxDyToAction(tuple(idealMovesDxDy))
         # print(idealActions, np.array(actions))
-        if np.array(actions) == idealActions:
-            # print("HELP")
-            return 1
+        monTowards = 0
+        idealMonTowards = 0
+        for idealMondxdy, mondxdy in zip(idealActions, actions):
+            idealdx, idealdy = self.actionToDxDy(idealMondxdy)
+            mondx, mondy = self.actionToDxDy(mondxdy)
+            # if mondx == idealdx and mondy == idealdy:
+            #     return 1 / (1/9 * numMonActions**numMonsters)
+            # else:
+            #     return 0
+            if (mondx == idealdx and mondy != -idealdy) or (mondy == idealdy and mondx != -idealdx):
+                monTowards += 1
+            if (mondx == idealdx and mondy == idealdy):
+                idealMonTowards += 1
+
+        if self.depth >= 4:
+            if idealMonTowards == numMonsters:
+                return 1
+            else:
+                return 0
         else:
-            return 0
-        
-        ##
+            if monTowards == 0:
+                return (0.25) / (6/9 * numMonActions**numMonsters)
+            else:
+                return (0.75 * monTowards/numMonsters) / (3/9 * numMonActions**numMonsters)
         
 
     def expValue(self, state: World, events, depthRemaining: int) -> float: #Returns the Utlity Value of the world
         # print(f"EXP: Depth Remaining{depthRemaining}")
-
-        eventScore = self.checkEvents(events)
+        eventScore = self.checkEvents(state, events)
         if(eventScore != 0):
             return eventScore
 
         if(depthRemaining == 0):
+            # print("expval evalstate depth")
             eval = self.evalState(state, events)
             # print(f"EVAL: {eval}")
             return eval
@@ -611,6 +641,7 @@ class TestCharacter(CharacterEntity):
         numMonsters = len(self.getMonsters(state))
 
         if(numMonsters == 0):
+            # print("expval evalstate mons")
             return self.evalState(state, events)
 
         else:
@@ -618,24 +649,54 @@ class TestCharacter(CharacterEntity):
             #9*9=81 Runs
 
             for monMoves in allMoves:
-                
+                if not self.validMonMove(monMoves, state):
+                    continue
+
                 probAction = self.probabiltyMonsterAction(monMoves, state)
+                # print("probaction: ", probAction)
                 if(probAction == 0):
                     continue
 
                 (worldAfterMonsterAction, newEvents) = self.doMonsterActs(state, monMoves)
                 
                 worldAfterMonsterAction = self.cancelCharacterAndMonsterMovement(worldAfterMonsterAction)
-                    
                 maxVal = self.maxValue(worldAfterMonsterAction, newEvents, depthRemaining - 1)
                 # print(f"MV: {maxVal}")
                 sumVal += probAction * maxVal
-
             return sumVal
-                        
+
+    def distance(self, tuple1, tuple2):
+        x1 = tuple1[0]
+        y1 = tuple1[1]
+        x2 = tuple2[0]
+        y2 = tuple2[1]
+
+        distance = (((y2 - y1)**2)+(x2 - x1)**2)**0.5
+        return distance
+    
+    def nearestMonsterDistance(self, world: World):
+        bmCoords = self.bomberManCoords(world)
+        monsterCoords = self.getMonCoords(world)
+
+        smallestDistance = 1000
+
+        for monsterCoord in monsterCoords:
+            # dist = self.distance(characterPos, monsterPos)
+            dist = len(self.aStar(world, (monsterCoord[0], monsterCoord[1]), (bmCoords[0], bmCoords[1])))
+            # print(dist)
+            if(dist < smallestDistance):
+                smallestDistance = dist
+
+        return smallestDistance
+
+    def distToDepth(self, nearestDist):
+        if(nearestDist < 3):
+            return 4
+        else:
+            return 2           
 
     def do(self, world):
-        world = self.cancelCharacterAndMonsterMovement(world) # idk why but this let us move
+        world = self.cancelCharacterMovement(world) # idk why but this let us move
         # world = SensedWorld.from_world(world)
 
         (monsterMovedWorld, events) = world.next()
@@ -643,10 +704,19 @@ class TestCharacter(CharacterEntity):
         #After the monsters Have done their determined action
         monsterMovedWorld = self.cancelCharacterAndMonsterMovement(monsterMovedWorld)
        
+        #'''
+        nearDist = self.nearestMonsterDistance(monsterMovedWorld)
+        # print(f"ND {nearDist}")
 
-        bestAction = self.expectimaxSearch(monsterMovedWorld, 6)
+        self.depth = self.distToDepth(nearDist)
+
+        bestAction = self.expectimaxSearch(monsterMovedWorld, self.depth)
+        # '''
+
+        # bestAction = self.expectimaxSearch(monsterMovedWorld, 4)
 
 
         # self.doAct(world, bestAct)
         self.doRealAction(world, bestAction)
         #'''
+        # self.cancelCharacterAndMonsterMovement(world)
