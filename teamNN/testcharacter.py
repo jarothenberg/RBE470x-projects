@@ -480,7 +480,7 @@ class TestCharacter(CharacterEntity):
         #For All Actions
         #Return Action with Greatest Expected value
         
-        playerActions = range(10)
+        playerActions = [8, 6, 2, 0, 7, 5, 3, 1, 4, 9]
         bestAction = 0
         maxEval = -1000000
         for playerAction in playerActions:
@@ -516,7 +516,7 @@ class TestCharacter(CharacterEntity):
             # print(f"Max EVAL: {eval}")
             return eval
 
-        playerActions = range(10)
+        playerActions = [8, 6, 2, 0, 7, 5, 3, 1, 4, 9]
         #V = -inf
         maxEval = -1000000000
         for playerAction in playerActions:
@@ -703,20 +703,21 @@ class TestCharacter(CharacterEntity):
         # monsterMovedWorld.printit()
         #After the monsters Have done their determined action
         monsterMovedWorld = self.cancelCharacterAndMonsterMovement(monsterMovedWorld)
-       
+        if self.checkEvents(monsterMovedWorld, events) == 0:
         #'''
-        nearDist = self.nearestMonsterDistance(monsterMovedWorld)
+            nearDist = self.nearestMonsterDistance(monsterMovedWorld)
         # print(f"ND {nearDist}")
 
-        self.depth = self.distToDepth(nearDist)
+            self.depth = self.distToDepth(nearDist)
 
-        bestAction = self.expectimaxSearch(monsterMovedWorld, self.depth)
+            bestAction = self.expectimaxSearch(monsterMovedWorld, self.depth)
+            self.doRealAction(world, bestAction)
+
         # '''
 
         # bestAction = self.expectimaxSearch(monsterMovedWorld, 4)
 
 
         # self.doAct(world, bestAct)
-        self.doRealAction(world, bestAction)
         #'''
         # self.cancelCharacterAndMonsterMovement(world)
