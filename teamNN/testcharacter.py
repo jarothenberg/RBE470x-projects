@@ -253,21 +253,146 @@ class TestCharacter(CharacterEntity):
     
 
     #Contion of world AFTER action (Features of S')
+        def getMonsters(self,wrld):
+        monsters = []
+        for x in range(wrld.width()):
+            for y in range(wrld.height()):
+                #+= appends empty lists and any list given
+                monsterAt = wrld.monsters_at(x,y)
+                # print(monsterAt) 
+                if(monsterAt != None):
+                    monsters += monsterAt
+        return monsters
+    
+    def getMonCoords(self, world):
+        allMonsters = self.getMonsters(world)
+        return [(monster.x, monster.y) for monster in allMonsters]
+    
+    def getNearestMonsterDistwithAstar(self, s: World):
+        coordsBM = self.bomberManCoords(s) #coords for BomberMan
+        monsterLocs = self.getMonCoords(s)
+        if len(monsterLocs) == 0:
+            nearestMonster = 0
+        if len(monsterLocs) == 1:
+            nearestMonster = len(self.aStar(s, (coordsBM[0], coordsBM[1]), (monsterLocs[0][0], monsterLocs[0][1])))
+            if nearestMonster == 0: #if there is a wall blocking the A* distance from bomberman monster distance then do the Euclidian Distance
+                nearestMonster = self.distance(self.bomberManCoords(s), monsterLocs[0])
+
+        if len(monsterLocs) == 2:
+            firstMonster = len(self.aStar(s, (coordsBM[0], coordsBM[1]), (monsterLocs[0][0], monsterLocs[0][1]))) 
+            secondMonster = len(self.aStar(s, (coordsBM[0], coordsBM[1]), (monsterLocs[1][0], monsterLocs[1][1]))) 
+            if firstMonster == 0:
+                firstMonster = self.distance(self.bomberManCoords(s), monsterLocs[0])
+            if secondMonster == 0:
+                secondMonster = self.distance(self.bomberManCoords(s), monsterLocs[1])
+            if firstMonster < secondMonster:
+                nearestMonster = firstMonster
+            else:
+                nearestMonster = secondMonster
+
+        return nearestMonster
+
+    def getNearestMonsterDistEuclidian(self, s: World):
+        coordsBM = self.bomberManCoords(s) #coords for BomberMan
+        monsterLocs = self.getMonCoords(s)
+        if len(monsterLocs) == 0:
+            nearestMonster = 0
+
+        if len(monsterLocs) == 1:
+            nearestMonster = self.distance(self.bomberManCoords(s), monsterLocs[0])
+
+        if len(monsterLocs) == 2:
+            firstMonster = self.distance(self.bomberManCoords(s), monsterLocs[0])
+            secondMonster = self.distance(self.bomberManCoords(s), monsterLocs[1])
+            if firstMonster < secondMonster:
+                nearestMonster = firstMonster
+            else:
+                nearestMonster = secondMonster
+
+        return nearestMonster
+    
+    def getAverageDistanceOfAllMonsters(self, s: World):
+        coordsBM = self.bomberManCoords(s) #coords for BomberMan
+        monsterLocs = self.getMonCoords(s)
+        if len(monsterLocs) == 0:
+            return 0
+
+        if len(monsterLocs) == 1:
+            nearestMonster = self.distance(self.bomberManCoords(s), monsterLocs[0])
+            return nearestMonster
+
+        if len(monsterLocs) == 2:
+            firstMonster = self.distance(self.bomberManCoords(s), monsterLocs[0])
+            secondMonster = self.distance(self.bomberManCoords(s), monsterLocs[1])
+
+            averageDistance = (firstMonster + secondMonster)/2
+            return averageDistance
+
+    def findClosestCornerDist(self, s: World):
+        coordsBM = self.bomberManCoords(s) #coords for BomberMan
+        corners = []
+        #corner.append((0,0))
+        for x in range(s.width()):
+            for y in range(s.height()):
+                #corner on the bottom left
+                if (y+1 == s.height() or (y+1 < s.height() and s.wall_at(x, y+1))) and ((x-1 == -1 and y+1 == s.height()) or (y+1 < s.height() and s.wall_at(x-1, y+1))) and (x-1 == -1 or s.wall_at(x-1, y)):
+                    corners.append((x,y))
+                #corner on the top left
+                if (x-1 == -1 or s.wall_at(x-1, y)) and ((x-1 == -1 and y-1 == -1) or s.wall_at(x-1, y-1)) and (y-1 == -1 or s.wall_at(x, y-1)):
+                    corners.append((x,y))
+                #corner on the bottom right
+                if (y+1 == s.height() or (y+1 < s.height() and s.wall_at(x, y+1))) and ((x+1 == s.width() and y+1 == s.height()) or ((x+1 < s.width() and y+1 < s.height() and s.wall_at(x+1, y+1))) or (x+1 == s.width())) and (x+1 == s.width() or (x+1 < s.width() and s.wall_at(x+1, y))):
+                    corners.append((x,y))
+                #corner on the top right
+                if (x+1 == s.width() or (x+1 < s.width() and s.wall_at(x+1, y))) and ((x+1 == s.width() and y-1 == -1) or (x+1 < s.width() and s.wall_at(x+1, y-1)) or (x+1 == s.width())) and (y-1 == -1 or s.wall_at(x, y-1)):
+                    corners.append((x,y))
+
+        print("corner", corners)
+        shortestDistance = -10
+        for corner in corners:
+            disCornerToBman = self.distance(self.bomberManCoords(s), corner)
+            print("disCornerToBman", disCornerToBman)
+            if shortestDistance == -10 or disCornerToBman < shortestDistance:
+                print("shorterDistance Found", corner)
+                shortestDistance = disCornerToBman
+
+            
+        print("The Shortest distance", shortestDistance)
+        return shortestDistance
+
+
+    #Contion of world AFTER action (Features of S')
     def features(self, s: World, a: int): # TODO
         # print("UPDATING FEATURES")
         (s_prime, events) = self.doAct(s,a)
         # feature0 = len(self.aStar(s, self.bomberManCoords(s), self.exitCoords(s)))
-
+        coordsBM = self.bomberManCoords(s) #coords for BomberMan
         eventScore = self.checkEvents(s_prime, events)
         if(eventScore != 0):
             return [0] * len(self.weights)
         
+        bombCoordsP = self.bombCoords(s)
+        bombDistance = 0
+        bombCoords = np.array(bombCoordsP)
+        if bombCoordsP != (None, None):
+            bombDistance = len(self.aStar(s, (coordsBM[0], coordsBM[1]), (bombCoords[0], bombCoords[1]))) 
+            print("bombDistance", bombDistance)
+
+        
         # print("HELP:",[event.tpe for event in events])
         # print(self.explodeDist(s_prime))
-        feature0 = self.distance(self.bomberManCoords(s_prime),self.exitCoords(s))
-        feature1 = self.bombTime(s_prime)
-        feature2 = self.explodeDist(s_prime)
-        features = [feature0, feature1, feature2]
+        feature0 = self.distance(self.bomberManCoords(s_prime), self.exitCoords(s)) #distance from BM to exit
+        feature1 = self.bombTime(s_prime) #Bomb Time
+        feature2 = self.explodeDist(s_prime) #Explosion Distance
+
+        feature3 = len(self.getMonsters(s)) #Number of monsters 
+        feature4 = self.getNearestMonsterDistEuclidian(s) #distance of the nearest monster to BomberMan    
+        feature5 = bombDistance #A* distance from physical bomb that bomberMan placed
+        feature6 = self.getAverageDistanceOfAllMonsters(s) #average distance of all mosnters Euclidian Distance
+        feature7 = self.findClosestCornerDist(s) #finds the closest corner to BomberMan
+        
+        features = [feature0, feature1, feature2, feature3, feature4, feature5, feature6, feature7]
+
         return features
 
     def all_a_prime(self, s: World): # TODO
