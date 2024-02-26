@@ -15,10 +15,11 @@ from queue import PriorityQueue
 
 class TestCharacter(CharacterEntity):
 
-    gamma = 1
-    alpha = 0.01
-    weights = [0.0, 0.0, 0.0]
-    # np.save('weights.npy',weights)
+    gamma = 0.9
+    alpha = 0.001
+    livingExpense = 2
+    percentRandom = 0.1
+
     def __init__(self, name, avatar, x, y):
         CharacterEntity.__init__(self, name, avatar, x, y)
         self.weights = np.load('weights.npy')
@@ -253,7 +254,7 @@ class TestCharacter(CharacterEntity):
     
 
     #Contion of world AFTER action (Features of S')
-        def getMonsters(self,wrld):
+    def getMonsters(self,wrld):
         monsters = []
         for x in range(wrld.width()):
             for y in range(wrld.height()):
@@ -347,17 +348,17 @@ class TestCharacter(CharacterEntity):
                 if (x+1 == s.width() or (x+1 < s.width() and s.wall_at(x+1, y))) and ((x+1 == s.width() and y-1 == -1) or (x+1 < s.width() and s.wall_at(x+1, y-1)) or (x+1 == s.width())) and (y-1 == -1 or s.wall_at(x, y-1)):
                     corners.append((x,y))
 
-        print("corner", corners)
+        # print("corner", corners)
         shortestDistance = -10
         for corner in corners:
             disCornerToBman = self.distance(self.bomberManCoords(s), corner)
-            print("disCornerToBman", disCornerToBman)
+            # print("disCornerToBman", disCornerToBman)
             if shortestDistance == -10 or disCornerToBman < shortestDistance:
-                print("shorterDistance Found", corner)
+                # print("shorterDistance Found", corner)
                 shortestDistance = disCornerToBman
 
             
-        print("The Shortest distance", shortestDistance)
+        # print("The Shortest distance", shortestDistance)
         return shortestDistance
 
 
@@ -376,12 +377,12 @@ class TestCharacter(CharacterEntity):
         bombCoords = np.array(bombCoordsP)
         if bombCoordsP != (None, None):
             bombDistance = len(self.aStar(s, (coordsBM[0], coordsBM[1]), (bombCoords[0], bombCoords[1]))) 
-            print("bombDistance", bombDistance)
+            # print("bombDistance", bombDistance)
 
         
         # print("HELP:",[event.tpe for event in events])
         # print(self.explodeDist(s_prime))
-        feature0 = self.distance(self.bomberManCoords(s_prime), self.exitCoords(s)) #distance from BM to exit
+        feature0 = self.distance(self.bomberManCoords(s_prime),self.exitCoords(s_prime))
         feature1 = self.bombTime(s_prime) #Bomb Time
         feature2 = self.explodeDist(s_prime) #Explosion Distance
 
@@ -402,7 +403,10 @@ class TestCharacter(CharacterEntity):
                 allAPrime.append(a)
         return allAPrime
 
-    def reward(self, s_prime: World) -> float: # TODO
+    def reward(self, s_prime: World, events=None) -> float: # TODO
+        if events != None and self.checkEvents(s_prime, events) == -1000000:
+            # print("YOU DIED")
+            return -2 * s_prime.time
         return s_prime.scores['me']
 
     #Aproximation of Evaluation/Score after action a has been performed
@@ -411,6 +415,17 @@ class TestCharacter(CharacterEntity):
         for weight, feature in zip(self.weights, self.features(s,a)):
             qEval += weight*feature
         return qEval
+    
+    def qAct(self, s: World) -> int:
+        maxQ = 0
+        all_a = self.all_a_prime(s)
+        bestA = all_a[0]
+        for a in self.all_a_prime(s):
+            qVal = self.Q(s, a)
+            if qVal > maxQ:
+                maxQ = qVal
+                bestA = a
+        return bestA
     
     def checkEvents(self, world, events):
         for event in events:
@@ -422,42 +437,52 @@ class TestCharacter(CharacterEntity):
     
     def updateWeights(self, s: World, a: int) -> None:
         (s_prime, events) = self.doAct(s,a)
-
-        eventScore = self.checkEvents(s_prime, events)
-        if(eventScore != 0):
-            return
+        featureValues = self.features(s,a)
 
         #The Value from making a step
-        r = self.reward(s_prime) - self.reward(s)
-        print("R:",r)
-        maxQ = 0
-        for a_prime in self.all_a_prime(s_prime):
-            curQ = self.Q(s_prime, a_prime)
-            if curQ > maxQ:
-                maxQ = curQ
-        delta = (r + self.gamma * maxQ) - self.Q(s, a)
-        # print(delta, r)
-        featureValues = self.features(s,a)
-        # print("updating weights")
-        for index in range(len(self.weights)):
-            # print("Weight before:",self.weights[index], self.alpha*delta*featureValues[index])
-            self.weights[index] += self.alpha*delta*featureValues[index]
-            # print("Weight after:",self.weights[index])
+        r = self.reward(s_prime, events) - self.reward(s) - self.livingExpense
+        # print("R:",r)
+        eventScore = self.checkEvents(s_prime, events)
+        # print("BEFORE",self.weights)
+        if(eventScore == 0):      
+            maxQ = 0
+            for a_prime in self.all_a_prime(s_prime):
+                curQ = self.Q(s_prime, a_prime)
+                if curQ > maxQ:
+                    maxQ = curQ
+            delta = (r + self.gamma * maxQ) - self.Q(s, a)
+            # print("updating weights")
+            for index in range(len(self.weights)):
+                # print("Weight before:",self.weights[index], self.alpha*delta*featureValues[index])
+                self.weights[index] += self.alpha*delta*featureValues[index]
+                # print("Weight after:",self.weights[index])
+        else:
+            delta = r - self.Q(s, a)
+            # print(delta)
+            for index in range(len(self.weights)):
+                # print(delta, self.weights[index], self.alpha*delta)
+                self.weights[index] += self.alpha*delta
+        # print("AFTER",self.weights)
+            
 
     def do(self, wrld):
         # Your code here
-        print("RUNNING DO")
-        
+        # print("RUNNING DO")
         #Choose A Random Action
-        chosenAction = random.randint(0,9)
-
-        print(f"Chosen Action: {chosenAction}")
+        if random.uniform(0,1) < self.percentRandom:
+            chosenAction = random.randint(0,9)
+            # print("RAND")
+        else:
+        # print(chosenAction)
+            chosenAction = self.qAct(wrld)
+            # print("NOT")
+        # print(f"Chosen Action: {chosenAction}")
 
         self.doRealAction(wrld, chosenAction)
 
         #Update Weights
         self.updateWeights(wrld, chosenAction)
 
-        print(self.weights)
+        # print(self.weights)
 
         np.save('weights.npy', np.array(self.weights))
