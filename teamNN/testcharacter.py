@@ -20,7 +20,7 @@ class TestCharacter(CharacterEntity):
     livingExpense = 0
     percentRandom = 0.1
     coordsBM = (0,0)
-
+    # np.save('weights.npy', np.array([108.50919504,0.0,-35.11945833,0.0,-54.05978763,0.0,0.0, 5.09927099,50]))
     def __init__(self, name, avatar, x, y):
         CharacterEntity.__init__(self, name, avatar, x, y)
         self.weights = np.load('weights.npy')
@@ -190,7 +190,7 @@ class TestCharacter(CharacterEntity):
         if self.coordsBM == (None, None):
             return False
         newCoord = tuple(np.array(self.actionToDxDy(a)) + np.array(self.coordsBM))
-        if newCoord in self.walkableNeighbors(s, self.coordsBM) or a == 4 or a == 9:
+        if newCoord in self.walkableNeighbors(s, self.coordsBM) or a == 4 or (a == 9 and len(self.getExplodeCoords(s)) == 0):
             return True
         else:
             return False
@@ -458,6 +458,9 @@ class TestCharacter(CharacterEntity):
             bombDistance = len(self.aStar(s, (self.coordsBM[0], self.coordsBM[1]), (bombCoords[0], bombCoords[1]))) 
             # print("bombDistance", bombDistance)
         self.coordsBM = tuple(np.array(self.coordsBM) + np.array(self.actionToDxDy(a)))
+        bomb = self.getBomb(s)
+        if a == 9:
+            bomb = "I AM BOMB HELLO HUMAN"
         feature0 = self.normalizeDistFeature(self.distance(self.coordsBM,self.exitCoords(s))) #distance from you to the exit
         feature1 = 0 #self.bombTime(s_prime) #Bomb Time
         feature2 = self.normalizeDistFeature(self.explodeDist(s)) #Explosion Distance
@@ -465,9 +468,10 @@ class TestCharacter(CharacterEntity):
         feature4 = self.normalizeDistFeature(self.getNearestMonsterDistEuclidian(s)) #distance of the nearest monster to BomberMan    
         feature5 = 0 #bombDistance #A* distance from physical bomb that bomberMan placed
         feature6 = 0 #self.getAverageDistanceOfAllMonsters(s) #average distance of all mosnters Euclidian Distance
-        feature7 = 0 #self.findClosestCornerDist(s) #finds the closest corner to BomberMan
+        feature7 = self.normalizeDistFeature(self.findClosestCornerDist(s)) #finds the closest corner to BomberMan
+        feature8 = bomb != None
         self.coordsBM = self.bomberManCoords(s)
-        features = [feature0, feature1, feature2, feature3, feature4, feature5, feature6, feature7]
+        features = [feature0, feature1, feature2, feature3, feature4, feature5, feature6, feature7, feature8]
 
         feature0Max = 1 #self.distance((0,0),(7,18))
         feature1Max = 10
@@ -477,8 +481,9 @@ class TestCharacter(CharacterEntity):
         feature5Max = 1 #self.distance((0,0),(7,18))
         feature6Max = 1 #self.distance((0,0),(7,18))
         feature7Max = 1 #self.distance((0,0),(7,18))/2
+        feature8Max = 1
 
-        featuresMaxVals = [feature0Max, feature1Max, feature2Max, feature3Max, feature4Max, feature5Max, feature6Max, feature7Max]
+        featuresMaxVals = [feature0Max, feature1Max, feature2Max, feature3Max, feature4Max, feature5Max, feature6Max, feature7Max, feature8Max]
 
         featuresNorm = np.divide(np.array(features),np.array(featuresMaxVals))
         # if any(featureVal > 1  for featureVal in featuresNorm):
