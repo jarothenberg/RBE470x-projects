@@ -19,7 +19,7 @@ class TestCharacter(CharacterEntity):
     alpha = 0.001
     livingExpense = 0
     percentRandom = 0.1
-    tempCoords = (0,0)
+    coordsBM = (0,0)
 
     def __init__(self, name, avatar, x, y):
         CharacterEntity.__init__(self, name, avatar, x, y)
@@ -186,11 +186,11 @@ class TestCharacter(CharacterEntity):
         return (action)
     
     def validPlayerMove(self, s, a):
-        bmCoords = self.bomberManCoords(s)
-        if bmCoords == (None, None):
+        self.coordsBM = self.bomberManCoords(s)
+        if self.coordsBM == (None, None):
             return False
-        newCoord = tuple(np.array(self.actionToDxDy(a)) + np.array(bmCoords))
-        if newCoord in self.walkableNeighbors(s, bmCoords) or a == 4 or a == 9:
+        newCoord = tuple(np.array(self.actionToDxDy(a)) + np.array(self.coordsBM))
+        if newCoord in self.walkableNeighbors(s, self.coordsBM) or a == 4 or a == 9:
             return True
         else:
             return False
@@ -297,7 +297,7 @@ class TestCharacter(CharacterEntity):
         explodeCoords = self.getExplodeCoords(world)
         minDist = self.distance((0,0),(7,10))
         for coord in explodeCoords:
-            dist = self.distance(coord, self.bomberManCoords(world))
+            dist = self.distance(coord, self.coordsBM)
             if dist < minDist:
                 minDist = dist
         return minDist
@@ -340,22 +340,25 @@ class TestCharacter(CharacterEntity):
         return [(monster.x, monster.y) for monster in allMonsters]
     
     def getNearestMonsterDistwithAstar(self, s: World): #
-        coordsBM = self.bomberManCoords(s) #coords for BomberMan
+        self.coordsBM = self.bomberManCoords(s) #coords for BomberMan
         monsterLocs = self.getMonCoords(s)
         if len(monsterLocs) == 0:
             nearestMonster = 0
         if len(monsterLocs) == 1:
-            nearestMonster = len(self.aStar(s, (coordsBM[0], coordsBM[1]), (monsterLocs[0][0], monsterLocs[0][1])))
+            nearestMonster = len(self.aStar(s, (self.coordsBM[0], self.coordsBM[1]), (monsterLocs[0][0], monsterLocs[0][1])))
             if nearestMonster == 0: #if there is a wall blocking the A* distance from bomberman monster distance then do the Euclidian Distance
-                nearestMonster = self.distance(self.bomberManCoords(s), monsterLocs[0])
+                self.coordsBM = self.bomberManCoords(s)
+                nearestMonster = self.distance(self.coordsBM, monsterLocs[0])
 
         if len(monsterLocs) == 2:
-            firstMonster = len(self.aStar(s, (coordsBM[0], coordsBM[1]), (monsterLocs[0][0], monsterLocs[0][1]))) 
-            secondMonster = len(self.aStar(s, (coordsBM[0], coordsBM[1]), (monsterLocs[1][0], monsterLocs[1][1]))) 
+            firstMonster = len(self.aStar(s, (self.coordsBM[0], self.coordsBM[1]), (monsterLocs[0][0], monsterLocs[0][1]))) 
+            secondMonster = len(self.aStar(s, (self.coordsBM[0], self.coordsBM[1]), (monsterLocs[1][0], monsterLocs[1][1]))) 
             if firstMonster == 0:
-                firstMonster = self.distance(self.bomberManCoords(s), monsterLocs[0])
+                self.coordsBM = self.bomberManCoords(s)
+                firstMonster = self.distance(self.coordsBM, monsterLocs[0])
             if secondMonster == 0:
-                secondMonster = self.distance(self.bomberManCoords(s), monsterLocs[1])
+                self.coordsBM = self.bomberManCoords(s)
+                secondMonster = self.distance(self.coordsBM, monsterLocs[1])
             if firstMonster < secondMonster:
                 nearestMonster = firstMonster
             else:
@@ -364,17 +367,16 @@ class TestCharacter(CharacterEntity):
         return nearestMonster
 
     def getNearestMonsterDistEuclidian(self, s: World):
-        coordsBM = self.bomberManCoords(s) #coords for BomberMan
         monsterLocs = self.getMonCoords(s)
         if len(monsterLocs) == 0:
             nearestMonster = self.distance((0,0),(7,18))
 
         if len(monsterLocs) == 1:
-            nearestMonster = self.distance(self.bomberManCoords(s), monsterLocs[0])
+            nearestMonster = self.distance(self.coordsBM, monsterLocs[0])
 
         if len(monsterLocs) == 2:
-            firstMonster = self.distance(self.bomberManCoords(s), monsterLocs[0])
-            secondMonster = self.distance(self.bomberManCoords(s), monsterLocs[1])
+            firstMonster = self.distance(self.coordsBM, monsterLocs[0])
+            secondMonster = self.distance(self.coordsBM, monsterLocs[1])
             if firstMonster < secondMonster:
                 nearestMonster = firstMonster
             else:
@@ -383,24 +385,26 @@ class TestCharacter(CharacterEntity):
         return nearestMonster
     
     def getAverageDistanceOfAllMonsters(self, s: World):
-        coordsBM = self.bomberManCoords(s) #coords for BomberMan
+        self.coordsBM = self.bomberManCoords(s) #coords for BomberMan
         monsterLocs = self.getMonCoords(s)
         if len(monsterLocs) == 0:
             return self.distance((0,0),(7,18))
 
         if len(monsterLocs) == 1:
-            nearestMonster = self.distance(self.bomberManCoords(s), monsterLocs[0])
+            self.coordsBM = self.bomberManCoords(s)
+            nearestMonster = self.distance(self.coordsBM, monsterLocs[0])
             return nearestMonster
 
         if len(monsterLocs) == 2:
-            firstMonster = self.distance(self.bomberManCoords(s), monsterLocs[0])
-            secondMonster = self.distance(self.bomberManCoords(s), monsterLocs[1])
+            self.coordsBM = self.bomberManCoords(s)
+            firstMonster = self.distance(self.coordsBM, monsterLocs[0])
+            secondMonster = self.distance(self.coordsBM, monsterLocs[1])
 
             averageDistance = (firstMonster + secondMonster)/2
             return averageDistance
 
     def findClosestCornerDist(self, s: World):
-        coordsBM = self.bomberManCoords(s) #coords for BomberMan
+        self.coordsBM = self.bomberManCoords(s) #coords for BomberMan
         corners = []
         #corner.append((0,0))
         for x in range(s.width()):
@@ -421,7 +425,8 @@ class TestCharacter(CharacterEntity):
         # print("corner", corners)
         shortestDistance = -10
         for corner in corners:
-            disCornerToBman = self.distance(self.bomberManCoords(s), corner)
+            self.coordsBM = self.bomberManCoords(s)
+            disCornerToBman = self.distance(self.coordsBM, corner)
             # print("disCornerToBman", disCornerToBman)
             if shortestDistance == -10 or disCornerToBman < shortestDistance:
                 # print("shorterDistance Found", corner)
@@ -438,29 +443,30 @@ class TestCharacter(CharacterEntity):
     #Contion of world AFTER action (Features of S')
     def features(self, s: World, a: int): # TODO
         # print("UPDATING FEATURES")
-        (s_prime, events) = self.doOnlyUsAct(s,a)
+        # (s_prime, events) = self.doOnlyUsAct(s,a)
         # feature0 = len(self.aStar(s, self.bomberManCoords(s), self.exitCoords(s)))
-        coordsBM = self.bomberManCoords(s) #coords for BomberMan
-        eventScore = self.checkEvents(s_prime, events)
-        if(eventScore != 0):
-            return [0] * len(self.weights)  
+        self.coordsBM = self.bomberManCoords(s) #coords for BomberMan
+        # eventScore = self.checkEvents(s_prime, events)
+        # if(eventScore != 0):
+        # if self.coordsBM == (None, None):
+        #     return [0] * len(self.weights)
         
         bombCoordsP = self.bombCoords(s)
         bombDistance = self.distance((0,0),(7,18))
         bombCoords = np.array(bombCoordsP)
         if bombCoordsP != (None, None):
-            bombDistance = len(self.aStar(s, (coordsBM[0], coordsBM[1]), (bombCoords[0], bombCoords[1]))) 
+            bombDistance = len(self.aStar(s, (self.coordsBM[0], self.coordsBM[1]), (bombCoords[0], bombCoords[1]))) 
             # print("bombDistance", bombDistance)
-
-        feature0 = self.normalizeDistFeature(self.distance(self.bomberManCoords(s_prime),self.exitCoords(s_prime))) #distance from you to the exit
+        self.coordsBM = tuple(np.array(self.coordsBM) + np.array(self.actionToDxDy(a)))
+        feature0 = self.normalizeDistFeature(self.distance(self.coordsBM,self.exitCoords(s))) #distance from you to the exit
         feature1 = 0 #self.bombTime(s_prime) #Bomb Time
-        feature2 = self.normalizeDistFeature(self.explodeDist(s_prime)) #Explosion Distance
+        feature2 = self.normalizeDistFeature(self.explodeDist(s)) #Explosion Distance
         feature3 = 0 #len(self.getMonsters(s)) #Number of monsters 
-        feature4 = self.normalizeDistFeature(self.getNearestMonsterDistEuclidian(s_prime)) #distance of the nearest monster to BomberMan    
+        feature4 = self.normalizeDistFeature(self.getNearestMonsterDistEuclidian(s)) #distance of the nearest monster to BomberMan    
         feature5 = 0 #bombDistance #A* distance from physical bomb that bomberMan placed
         feature6 = 0 #self.getAverageDistanceOfAllMonsters(s) #average distance of all mosnters Euclidian Distance
         feature7 = 0 #self.findClosestCornerDist(s) #finds the closest corner to BomberMan
-        
+        self.coordsBM = self.bomberManCoords(s)
         features = [feature0, feature1, feature2, feature3, feature4, feature5, feature6, feature7]
 
         feature0Max = 1 #self.distance((0,0),(7,18))
