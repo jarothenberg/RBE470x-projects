@@ -86,6 +86,18 @@ class SensedWorld(World):
         new.update_scores()
         new.manage_events()
         return (new, new.events)
+    
+    def onlyUsNext(self):
+        """Returns a new world state, along with the events that occurred"""
+        new = SensedWorld.from_world(self)
+        new.time = new.time - 1
+        new.update_explosions()
+        new.events = new.update_characters()
+        new.update_scores()
+        new.manage_events()
+        return (new, new.events)
+    
+    
 
     ###################
     # Private methods #

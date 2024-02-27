@@ -17,8 +17,9 @@ class TestCharacter(CharacterEntity):
 
     gamma = 0.9
     alpha = 0.001
-    livingExpense = 2
+    livingExpense = 0
     percentRandom = 0.1
+    tempCoords = (0,0)
 
     def __init__(self, name, avatar, x, y):
         CharacterEntity.__init__(self, name, avatar, x, y)
@@ -92,7 +93,21 @@ class TestCharacter(CharacterEntity):
                 character.place_bomb()
         
         (newWorld, events) = world.next()
-        return (newWorld, events) 
+        return (newWorld, events)
+    
+    def doOnlyUsAct(self, world: World, playerAction: int) -> World:
+        characters = self.getCharacteres(world)
+        if(len(characters) > 0):
+            character = characters[0] 
+            if(playerAction < 9):
+                (dx,dy) = self.actionToDxDy(playerAction)
+                character.move(dx,dy)
+            else:
+                character.move(0,0)
+                character.place_bomb()
+        
+        (newWorld, events) = world.onlyUsNext()
+        return (newWorld, events)
 
     def getCharacteres(self,world: World) -> list[CharacterEntity]:
         characters = []
@@ -136,8 +151,44 @@ class TestCharacter(CharacterEntity):
                 
         return (dx,dy)
     
+    def dxDyToAction(self, dxDy: tuple[int, int]) -> int:
+        dx = dxDy[0]
+        dy = dxDy[1]
+        action = 0
+        if(dy == -1 and dx == -1):
+            #TL
+            action = 0
+        elif(dy == -1 and dx == 0):
+            #TM     
+            action = 1
+        elif(dy == -1 and dx == 1):
+            #TR
+            action = 2
+        elif(dy == 0 and dx == -1):
+            #MR
+            action = 3
+        elif(dy == 0 and dx == 0):
+            #MC
+            action = 4        
+        elif(dy == 0 and dx == 1):
+            #MR
+            action = 5       
+        elif(dy == 1 and dx == -1):
+            #BL
+            action = 6
+        elif(dy == 1 and dx == 0):
+            #BC
+            action = 7        
+        elif(dy == 1 and dx == 1):
+            #BR
+            action = 8   
+            
+        return (action)
+    
     def validPlayerMove(self, s, a):
         bmCoords = self.bomberManCoords(s)
+        if bmCoords == (None, None):
+            return False
         newCoord = tuple(np.array(self.actionToDxDy(a)) + np.array(bmCoords))
         if newCoord in self.walkableNeighbors(s, bmCoords) or a == 4 or a == 9:
             return True
@@ -210,6 +261,7 @@ class TestCharacter(CharacterEntity):
     def bombTime(self, world):
         bomb = self.getBomb(world)
         maxBombTime = 10
+
         if bomb != None:
             return bomb.timer
         else:
@@ -218,6 +270,14 @@ class TestCharacter(CharacterEntity):
 
     def getExplodeCoords(self, world):
         bombCoord = self.bombCoords(world)
+        if bombCoord == (None, None):
+            explodeCoords = []
+            explosions = self.getBombExplosions(world)
+            for explosion in explosions:
+                explosionXY = (explosion.x, explosion.y)
+                explodeCoords.append(explosionXY)
+            return explodeCoords
+        
         explodeCoords = [bombCoord]
         bombRange = 4
         directions = [(0,1),(0,-1),(1,0),(-1,0)]
@@ -235,7 +295,7 @@ class TestCharacter(CharacterEntity):
     
     def explodeDist(self, world):
         explodeCoords = self.getExplodeCoords(world)
-        minDist = 15
+        minDist = self.distance((0,0),(7,10))
         for coord in explodeCoords:
             dist = self.distance(coord, self.bomberManCoords(world))
             if dist < minDist:
@@ -265,11 +325,21 @@ class TestCharacter(CharacterEntity):
                     monsters += monsterAt
         return monsters
     
+    def getBombExplosions(self,wrld):
+        explosions = []
+        for x in range(wrld.width()):
+            for y in range(wrld.height()):
+                expAt = wrld.explosion_at(x,y)
+                # print(monsterAt) 
+                if(expAt != None):
+                    explosions += [expAt]
+        return explosions
+    
     def getMonCoords(self, world):
         allMonsters = self.getMonsters(world)
         return [(monster.x, monster.y) for monster in allMonsters]
     
-    def getNearestMonsterDistwithAstar(self, s: World):
+    def getNearestMonsterDistwithAstar(self, s: World): #
         coordsBM = self.bomberManCoords(s) #coords for BomberMan
         monsterLocs = self.getMonCoords(s)
         if len(monsterLocs) == 0:
@@ -297,7 +367,7 @@ class TestCharacter(CharacterEntity):
         coordsBM = self.bomberManCoords(s) #coords for BomberMan
         monsterLocs = self.getMonCoords(s)
         if len(monsterLocs) == 0:
-            nearestMonster = 0
+            nearestMonster = self.distance((0,0),(7,18))
 
         if len(monsterLocs) == 1:
             nearestMonster = self.distance(self.bomberManCoords(s), monsterLocs[0])
@@ -316,7 +386,7 @@ class TestCharacter(CharacterEntity):
         coordsBM = self.bomberManCoords(s) #coords for BomberMan
         monsterLocs = self.getMonCoords(s)
         if len(monsterLocs) == 0:
-            return 0
+            return self.distance((0,0),(7,18))
 
         if len(monsterLocs) == 1:
             nearestMonster = self.distance(self.bomberManCoords(s), monsterLocs[0])
@@ -360,41 +430,54 @@ class TestCharacter(CharacterEntity):
             
         # print("The Shortest distance", shortestDistance)
         return shortestDistance
+    
+    def normalizeDistFeature(self, distance):
+        return 1/(1+distance)
 
 
     #Contion of world AFTER action (Features of S')
     def features(self, s: World, a: int): # TODO
         # print("UPDATING FEATURES")
-        (s_prime, events) = self.doAct(s,a)
+        (s_prime, events) = self.doOnlyUsAct(s,a)
         # feature0 = len(self.aStar(s, self.bomberManCoords(s), self.exitCoords(s)))
         coordsBM = self.bomberManCoords(s) #coords for BomberMan
         eventScore = self.checkEvents(s_prime, events)
         if(eventScore != 0):
-            return [0] * len(self.weights)
+            return [0] * len(self.weights)  
         
         bombCoordsP = self.bombCoords(s)
-        bombDistance = 0
+        bombDistance = self.distance((0,0),(7,18))
         bombCoords = np.array(bombCoordsP)
         if bombCoordsP != (None, None):
             bombDistance = len(self.aStar(s, (coordsBM[0], coordsBM[1]), (bombCoords[0], bombCoords[1]))) 
             # print("bombDistance", bombDistance)
 
-        
-        # print("HELP:",[event.tpe for event in events])
-        # print(self.explodeDist(s_prime))
-        feature0 = self.distance(self.bomberManCoords(s_prime),self.exitCoords(s_prime))
-        feature1 = self.bombTime(s_prime) #Bomb Time
-        feature2 = self.explodeDist(s_prime) #Explosion Distance
-
-        feature3 = len(self.getMonsters(s)) #Number of monsters 
-        feature4 = self.getNearestMonsterDistEuclidian(s) #distance of the nearest monster to BomberMan    
-        feature5 = bombDistance #A* distance from physical bomb that bomberMan placed
-        feature6 = self.getAverageDistanceOfAllMonsters(s) #average distance of all mosnters Euclidian Distance
-        feature7 = self.findClosestCornerDist(s) #finds the closest corner to BomberMan
+        feature0 = self.normalizeDistFeature(self.distance(self.bomberManCoords(s_prime),self.exitCoords(s_prime))) #distance from you to the exit
+        feature1 = 0 #self.bombTime(s_prime) #Bomb Time
+        feature2 = self.normalizeDistFeature(self.explodeDist(s_prime)) #Explosion Distance
+        feature3 = 0 #len(self.getMonsters(s)) #Number of monsters 
+        feature4 = self.normalizeDistFeature(self.getNearestMonsterDistEuclidian(s_prime)) #distance of the nearest monster to BomberMan    
+        feature5 = 0 #bombDistance #A* distance from physical bomb that bomberMan placed
+        feature6 = 0 #self.getAverageDistanceOfAllMonsters(s) #average distance of all mosnters Euclidian Distance
+        feature7 = 0 #self.findClosestCornerDist(s) #finds the closest corner to BomberMan
         
         features = [feature0, feature1, feature2, feature3, feature4, feature5, feature6, feature7]
 
-        return features
+        feature0Max = 1 #self.distance((0,0),(7,18))
+        feature1Max = 10
+        feature2Max = 1 # self.distance((0,0),(7,10))            
+        feature3Max = 2
+        feature4Max = 1 #self.distance((0,0),(7,18))
+        feature5Max = 1 #self.distance((0,0),(7,18))
+        feature6Max = 1 #self.distance((0,0),(7,18))
+        feature7Max = 1 #self.distance((0,0),(7,18))/2
+
+        featuresMaxVals = [feature0Max, feature1Max, feature2Max, feature3Max, feature4Max, feature5Max, feature6Max, feature7Max]
+
+        featuresNorm = np.divide(np.array(features),np.array(featuresMaxVals))
+        # if any(featureVal > 1  for featureVal in featuresNorm):
+        #     print(featuresNorm)
+        return featuresNorm
 
     def all_a_prime(self, s: World): # TODO
         allAPrime = []
@@ -417,14 +500,16 @@ class TestCharacter(CharacterEntity):
         return qEval
     
     def qAct(self, s: World) -> int:
-        maxQ = 0
+        maxQ = -float('inf')#0
         all_a = self.all_a_prime(s)
         bestA = all_a[0]
         for a in self.all_a_prime(s):
             qVal = self.Q(s, a)
+            print("qVal:",qVal,a)
             if qVal > maxQ:
                 maxQ = qVal
                 bestA = a
+        print("bestA:",bestA)
         return bestA
     
     def checkEvents(self, world, events):
@@ -441,41 +526,68 @@ class TestCharacter(CharacterEntity):
 
         #The Value from making a step
         r = self.reward(s_prime, events) - self.reward(s) - self.livingExpense
-        # print("R:",r)
+        print("R:",r)
         eventScore = self.checkEvents(s_prime, events)
-        # print("BEFORE",self.weights)
-        if(eventScore == 0):      
+        print("BEFORE",self.weights)
+        # if(eventScore == 0):      
+        all_a = self.all_a_prime(s_prime)
+        if(len(all_a) == 0):
             maxQ = 0
-            for a_prime in self.all_a_prime(s_prime):
-                curQ = self.Q(s_prime, a_prime)
-                if curQ > maxQ:
-                    maxQ = curQ
-            delta = (r + self.gamma * maxQ) - self.Q(s, a)
-            # print("updating weights")
-            for index in range(len(self.weights)):
-                # print("Weight before:",self.weights[index], self.alpha*delta*featureValues[index])
-                self.weights[index] += self.alpha*delta*featureValues[index]
-                # print("Weight after:",self.weights[index])
         else:
-            delta = r - self.Q(s, a)
-            # print(delta)
-            for index in range(len(self.weights)):
-                # print(delta, self.weights[index], self.alpha*delta)
-                self.weights[index] += self.alpha*delta
+            maxQ = -float('inf')
+        for a_prime in self.all_a_prime(s_prime):
+            curQ = self.Q(s_prime, a_prime)
+            if curQ > maxQ:
+                maxQ = curQ
+        delta = (r + self.gamma * maxQ) - self.Q(s, a)
+        # print("updating weights")
+        for index in range(len(self.weights)):
+            # print("Stuff:",self.weights[index], self.alpha*delta*featureValues[index])
+            self.weights[index] += self.alpha*delta*featureValues[index]
+                # print("Weight after:",self.weights[index])
+        # else:
+        print("AFTER",self.weights)
+        #     delta = r - self.Q(s, a)
+        #     # print("BEFORE:",self.weights)
+        #     # print(delta)
+        #     for index in range(len(self.weights)):
+        #         # print(delta, self.weights[index], self.alpha*delta)
+        #         self.weights[index] += self.alpha*delta
+            # print("AFER:",self.weights)
+
         # print("AFTER",self.weights)
+                
+    def interactive(self):
+        # Commands
+        dx, dy = 0, 0
+        # Handle input
+        for c in input("How would you like to move (w=up,a=left,s=down,d=right,b=bomb)? "):
+            if 'w' == c:
+                dy -= 1
+            if 'a' == c:
+                dx -= 1
+            if 's' == c:
+                dy += 1
+            if 'd' == c:
+                dx += 1
+            if 'b' == c:
+                return 9
+        return self.dxDyToAction((dx,dy))
+
             
 
     def do(self, wrld):
         # Your code here
         # print("RUNNING DO")
         #Choose A Random Action
+
         if random.uniform(0,1) < self.percentRandom:
             chosenAction = random.randint(0,9)
-            # print("RAND")
+            print("RAND")
         else:
-        # print(chosenAction)
             chosenAction = self.qAct(wrld)
-            # print("NOT")
+        # chosenAction = self.interactive()
+        
         # print(f"Chosen Action: {chosenAction}")
 
         self.doRealAction(wrld, chosenAction)
@@ -483,6 +595,6 @@ class TestCharacter(CharacterEntity):
         #Update Weights
         self.updateWeights(wrld, chosenAction)
 
-        # print(self.weights)
+        print(self.weights)
 
         np.save('weights.npy', np.array(self.weights))
