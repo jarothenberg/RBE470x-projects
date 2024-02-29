@@ -21,4 +21,9 @@ g.add_character(TestCharacter("me", # name
 ))
 
 # Run!
+<<<<<<< Updated upstream
 g.go()
+=======
+# g.go()
+g.go(1)
+>>>>>>> Stashed changes
