@@ -16,11 +16,11 @@ from queue import PriorityQueue
 class TestCharacter(CharacterEntity):
 
     gamma = 0.9
-    alpha = 0.001
+    alpha = 0.01
     livingExpense = 0
-    percentRandom = 0.1
+    percentRandom = 0.0
     coordsBM = (0,0)
-    # np.save('weights.npy', np.array([108.50919504,0.0,-35.11945833,0.0,-54.05978763,0.0,0.0, 5.09927099,50]))
+    # np.save('weights.npy', np.array([900.0, 0.0, -180.0, 0.0, -250.0, 0.0, 0.0, -30.0, 100.0, -10.0]))
     def __init__(self, name, avatar, x, y):
         CharacterEntity.__init__(self, name, avatar, x, y)
         self.weights = np.load('weights.npy')
@@ -190,7 +190,7 @@ class TestCharacter(CharacterEntity):
         if self.coordsBM == (None, None):
             return False
         newCoord = tuple(np.array(self.actionToDxDy(a)) + np.array(self.coordsBM))
-        if newCoord in self.walkableNeighbors(s, self.coordsBM) or a == 4 or (a == 9 and len(self.getExplodeCoords(s)) == 0):
+        if newCoord in self.walkableNeighbors(s, self.coordsBM) or a == 4 or (a == 9 and self.getBomb(s) == None):
             return True
         else:
             return False
@@ -269,15 +269,15 @@ class TestCharacter(CharacterEntity):
         
 
     def getExplodeCoords(self, world):
+        explodeCoords = []
+        explosions = self.getBombExplosions(world)
+        for explosion in explosions:
+            explosionXY = (explosion.x, explosion.y)
+            explodeCoords.append(explosionXY)
+        return explodeCoords
+    
+    def getExplodeFutureCoords(self, world):
         bombCoord = self.bombCoords(world)
-        if bombCoord == (None, None):
-            explodeCoords = []
-            explosions = self.getBombExplosions(world)
-            for explosion in explosions:
-                explosionXY = (explosion.x, explosion.y)
-                explodeCoords.append(explosionXY)
-            return explodeCoords
-        
         explodeCoords = [bombCoord]
         bombRange = 4
         directions = [(0,1),(0,-1),(1,0),(-1,0)]
@@ -292,6 +292,16 @@ class TestCharacter(CharacterEntity):
                     if (world.wall_at(checkCoord[0], checkCoord[1])):
                         break
         return explodeCoords
+    
+    def explodeFutureDist(self, world):
+        explodeCoords = self.getExplodeFutureCoords(world)
+        # print(f"FEC: {explodeCoords}")
+        minDist = self.distance((0,0),(7,10))
+        for coord in explodeCoords:
+            dist = self.distance(coord, self.coordsBM)
+            if dist < minDist:
+                minDist = dist
+        return minDist
     
     def explodeDist(self, world):
         explodeCoords = self.getExplodeCoords(world)
@@ -404,7 +414,6 @@ class TestCharacter(CharacterEntity):
             return averageDistance
 
     def findClosestCornerDist(self, s: World):
-        self.coordsBM = self.bomberManCoords(s) #coords for BomberMan
         corners = []
         #corner.append((0,0))
         for x in range(s.width()):
@@ -425,7 +434,6 @@ class TestCharacter(CharacterEntity):
         # print("corner", corners)
         shortestDistance = -10
         for corner in corners:
-            self.coordsBM = self.bomberManCoords(s)
             disCornerToBman = self.distance(self.coordsBM, corner)
             # print("disCornerToBman", disCornerToBman)
             if shortestDistance == -10 or disCornerToBman < shortestDistance:
@@ -457,10 +465,13 @@ class TestCharacter(CharacterEntity):
         if bombCoordsP != (None, None):
             bombDistance = len(self.aStar(s, (self.coordsBM[0], self.coordsBM[1]), (bombCoords[0], bombCoords[1]))) 
             # print("bombDistance", bombDistance)
-        self.coordsBM = tuple(np.array(self.coordsBM) + np.array(self.actionToDxDy(a)))
-        bomb = self.getBomb(s)
-        if a == 9:
-            bomb = "I AM BOMB HELLO HUMAN"
+        actionMove = np.array(self.actionToDxDy(a))
+        # print("Before Pos:",actionMove, self.coordsBM)
+        self.coordsBM = tuple(np.array(self.coordsBM) + actionMove)
+        # print(f"After Pos: {self.coordsBM}")
+        bomb = None
+        if a == 9: 
+            bomb = True
         feature0 = self.normalizeDistFeature(self.distance(self.coordsBM,self.exitCoords(s))) #distance from you to the exit
         feature1 = 0 #self.bombTime(s_prime) #Bomb Time
         feature2 = self.normalizeDistFeature(self.explodeDist(s)) #Explosion Distance
@@ -470,9 +481,10 @@ class TestCharacter(CharacterEntity):
         feature6 = 0 #self.getAverageDistanceOfAllMonsters(s) #average distance of all mosnters Euclidian Distance
         feature7 = self.normalizeDistFeature(self.findClosestCornerDist(s)) #finds the closest corner to BomberMan
         feature8 = bomb != None
+        feature9 = self.normalizeDistFeature(self.explodeFutureDist(s))/((self.bombTime(s)+1)**2)
+        features = [feature0, feature1, feature2, feature3, feature4, feature5, feature6, feature7, feature8, feature9]
+        # print(f"Action: {a}, FEATURES: {features}, BMAn {self.coordsBM}")
         self.coordsBM = self.bomberManCoords(s)
-        features = [feature0, feature1, feature2, feature3, feature4, feature5, feature6, feature7, feature8]
-
         feature0Max = 1 #self.distance((0,0),(7,18))
         feature1Max = 10
         feature2Max = 1 # self.distance((0,0),(7,10))            
@@ -482,8 +494,9 @@ class TestCharacter(CharacterEntity):
         feature6Max = 1 #self.distance((0,0),(7,18))
         feature7Max = 1 #self.distance((0,0),(7,18))/2
         feature8Max = 1
+        feature9Max = 1
 
-        featuresMaxVals = [feature0Max, feature1Max, feature2Max, feature3Max, feature4Max, feature5Max, feature6Max, feature7Max, feature8Max]
+        featuresMaxVals = [feature0Max, feature1Max, feature2Max, feature3Max, feature4Max, feature5Max, feature6Max, feature7Max, feature8Max, feature9Max]
 
         featuresNorm = np.divide(np.array(features),np.array(featuresMaxVals))
         # if any(featureVal > 1  for featureVal in featuresNorm):
@@ -535,11 +548,20 @@ class TestCharacter(CharacterEntity):
         (s_prime, events) = self.doAct(s,a)
         featureValues = self.features(s,a)
 
+        bombPrev = self.getBomb(s)
+        bombNext = self.getBomb(s_prime)
+        # print(f" {bombPrev}, {bombNext}")
+
         #The Value from making a step
         r = self.reward(s_prime, events) - self.reward(s) - self.livingExpense
+
+        if(bombPrev == None and bombNext != None):
+            print("PLACED BOMB")
+            r += 100
+
         print("R:",r)
         eventScore = self.checkEvents(s_prime, events)
-        print("BEFORE",self.weights)
+        # print("BEFORE",self.weights)
         # if(eventScore == 0):      
         all_a = self.all_a_prime(s_prime)
         if(len(all_a) == 0):
@@ -557,7 +579,7 @@ class TestCharacter(CharacterEntity):
             self.weights[index] += self.alpha*delta*featureValues[index]
                 # print("Weight after:",self.weights[index])
         # else:
-        print("AFTER",self.weights)
+        # print("AFTER",self.weights)
         #     delta = r - self.Q(s, a)
         #     # print("BEFORE:",self.weights)
         #     # print(delta)
