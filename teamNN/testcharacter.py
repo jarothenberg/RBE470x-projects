@@ -312,7 +312,14 @@ class TestCharacter(CharacterEntity):
         feature4 = placedbomb == True
         feature5 = self.normalizeDistFeature(self.explodeFutureDist(s))/((self.bombTime(s)+1))
         features = [feature0, feature1, feature2, feature3, feature4, feature5]
-        self.coordsBM = self.bomberManCoords(s)
+
+        bmanCords = self.bomberManCoords(s)
+        if bmanCords == (None, None):
+            return [0] * len(self.weights)
+        
+        self.coordsBM = bmanCords
+
+        # self.coordsBM = self.bomberManCoords(s)
 
         return features
 
