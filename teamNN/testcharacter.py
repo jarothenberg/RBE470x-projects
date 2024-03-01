@@ -19,6 +19,7 @@ class TestCharacter(CharacterEntity):
     alpha = 0.01
     livingExpense = 0
     percentRandom = 0.0
+    isGuided = False
     coordsBM = (0,0)
 
     def __init__(self, name, avatar, x, y):
@@ -305,44 +306,21 @@ class TestCharacter(CharacterEntity):
     #Contion of world AFTER action (Features of S')
     def features(self, s: World, a: int): # TODO
 
-        bombCoordsP = self.bombCoords(s)
-        bombDistance = self.distance((0,0),(7,18))
-        bombCoords = np.array(bombCoordsP)
-
         actionMove = np.array(self.actionToDxDy(a))
         self.coordsBM = tuple(np.array(self.coordsBM) + actionMove)
-        bomb = None
+        placedbomb = False
         if a == 9: 
-            bomb = True
+            placedbomb = True
         feature0 = self.normalizeDistFeature(self.distance(self.coordsBM,self.exitCoords(s))) #distance from you to the exit
-        feature1 = 0 #self.bombTime(s_prime) #Bomb Time
         feature2 = self.normalizeDistFeature(self.explodeDist(s))**(self.explodeDist(s)/2.5) #Explosion Distance
-        feature3 = 0 #len(self.getMonsters(s)) #Number of monsters 
         feature4 = self.normalizeDistFeature(self.getNearestMonsterDistEuclidian(s))**(self.getNearestMonsterDistEuclidian(s)/7.5) #distance of the nearest monster to BomberMan    
-        feature5 = 0 #bombDistance #A* distance from physical bomb that bomberMan placed
-        feature6 = 0 #self.getAverageDistanceOfAllMonsters(s) #average distance of all mosnters Euclidian Distance
         feature7 = self.normalizeDistFeature(self.findClosestCornerDist(s))**(self.findClosestCornerDist(s)/2) #finds the closest corner to BomberMan
-        feature8 = bomb != None
+        feature8 = placedbomb == True
         feature9 = self.normalizeDistFeature(self.explodeFutureDist(s))/((self.bombTime(s)+1))
-        features = [feature0, feature1, feature2, feature3, feature4, feature5, feature6, feature7, feature8, feature9]
-        # print(f"Action: {a}, FEATURES: {features}, BMAn {self.coordsBM}")
+        features = [feature0, 0, feature2, 0, feature4, 0, 0, feature7, feature8, feature9]
         self.coordsBM = self.bomberManCoords(s)
-        feature0Max = 1 #self.distance((0,0),(7,18))
-        feature1Max = 10
-        feature2Max = 1 # self.distance((0,0),(7,10))            
-        feature3Max = 2
-        feature4Max = 1 #self.distance((0,0),(7,18))
-        feature5Max = 1 #self.distance((0,0),(7,18))
-        feature6Max = 1 #self.distance((0,0),(7,18))
-        feature7Max = 1 #self.distance((0,0),(7,18))/2
-        feature8Max = 1
-        feature9Max = 1
 
-        featuresMaxVals = [feature0Max, feature1Max, feature2Max, feature3Max, feature4Max, feature5Max, feature6Max, feature7Max, feature8Max, feature9Max]
-
-        featuresNorm = np.divide(np.array(features),np.array(featuresMaxVals))
-
-        return featuresNorm
+        return features
 
     def all_a_prime(self, s: World): # TODO
         allAPrime = []
@@ -430,19 +408,19 @@ class TestCharacter(CharacterEntity):
                 return 9
         return self.dxDyToAction((dx,dy))
 
-            
 
     def do(self, wrld):
         # Your code here
         # print("RUNNING DO")
         #Choose A Random Action
 
-        if random.uniform(0,1) < self.percentRandom:
+        if self.isGuided:
+            chosenAction = self.interactive()
+        elif random.uniform(0,1) < self.percentRandom:
             chosenAction = random.randint(0,9)
             print("RAND")
         else:
-            chosenAction = self.qAct(wrld)
-        # chosenAction = self.interactive()
+            chosenAction = self.qAct(wrld)  
         
         # print(f"Chosen Action: {chosenAction}")
 
