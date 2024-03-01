@@ -474,14 +474,14 @@ class TestCharacter(CharacterEntity):
             bomb = True
         feature0 = self.normalizeDistFeature(self.distance(self.coordsBM,self.exitCoords(s))) #distance from you to the exit
         feature1 = 0 #self.bombTime(s_prime) #Bomb Time
-        feature2 = self.normalizeDistFeature(self.explodeDist(s)) #Explosion Distance
+        feature2 = self.normalizeDistFeature(self.explodeDist(s))**(self.explodeDist(s)/2.5) #Explosion Distance
         feature3 = 0 #len(self.getMonsters(s)) #Number of monsters 
-        feature4 = self.normalizeDistFeature(self.getNearestMonsterDistEuclidian(s))**(self.getNearestMonsterDistEuclidian(s)/5) #distance of the nearest monster to BomberMan    
+        feature4 = self.normalizeDistFeature(self.getNearestMonsterDistEuclidian(s))**(self.getNearestMonsterDistEuclidian(s)/7.5) #distance of the nearest monster to BomberMan    
         feature5 = 0 #bombDistance #A* distance from physical bomb that bomberMan placed
         feature6 = 0 #self.getAverageDistanceOfAllMonsters(s) #average distance of all mosnters Euclidian Distance
         feature7 = self.normalizeDistFeature(self.findClosestCornerDist(s))**(self.findClosestCornerDist(s)/2) #finds the closest corner to BomberMan
         feature8 = bomb != None
-        feature9 = self.normalizeDistFeature(self.explodeFutureDist(s))/((self.bombTime(s)+1)**2)
+        feature9 = self.normalizeDistFeature(self.explodeFutureDist(s))/((self.bombTime(s)+1))
         features = [feature0, feature1, feature2, feature3, feature4, feature5, feature6, feature7, feature8, feature9]
         # print(f"Action: {a}, FEATURES: {features}, BMAn {self.coordsBM}")
         self.coordsBM = self.bomberManCoords(s)

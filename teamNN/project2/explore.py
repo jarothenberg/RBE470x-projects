@@ -13,4 +13,4 @@ if(argc == 2):
 print(itterations)
 for i in range(itterations):
     # print(i)
-    os.system("python variant4.py")
+    os.system("python variant2.py")
