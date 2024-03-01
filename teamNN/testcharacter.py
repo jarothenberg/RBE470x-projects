@@ -20,6 +20,7 @@ class TestCharacter(CharacterEntity):
     livingExpense = 0
     percentRandom = 0.0
     isGuided = False
+    training = False
     coordsBM = (0,0)
 
     def __init__(self, name, avatar, x, y):
@@ -230,8 +231,6 @@ class TestCharacter(CharacterEntity):
         distance = (((y2 - y1)**2)+(x2 - x1)**2)**0.5
         return distance
     
-
-    #Contion of world AFTER action (Features of S')
     def getMonsters(self,wrld):
         monsters = []
         for x in range(wrld.width()):
@@ -278,18 +277,14 @@ class TestCharacter(CharacterEntity):
         corners = []
         for x in range(s.width()):
             for y in range(s.height()):
-                #corner on the bottom left
                 if (y+1 == s.height() or (y+1 < s.height() and s.wall_at(x, y+1))) and ((x-1 == -1 and y+1 == s.height()) or (y+1 < s.height() and s.wall_at(x-1, y+1))) and (x-1 == -1 or s.wall_at(x-1, y)):
-                    corners.append((x,y))
-                #corner on the top left
+                    corners.append((x,y))#BL
                 if (x-1 == -1 or s.wall_at(x-1, y)) and ((x-1 == -1 and y-1 == -1) or s.wall_at(x-1, y-1)) and (y-1 == -1 or s.wall_at(x, y-1)):
-                    corners.append((x,y))
-                #corner on the bottom right
+                    corners.append((x,y))#TL
                 if (y+1 == s.height() or (y+1 < s.height() and s.wall_at(x, y+1))) and ((x+1 == s.width() and y+1 == s.height()) or ((x+1 < s.width() and y+1 < s.height() and s.wall_at(x+1, y+1))) or (x+1 == s.width())) and (x+1 == s.width() or (x+1 < s.width() and s.wall_at(x+1, y))):
-                    corners.append((x,y))
-                #corner on the top right
+                    corners.append((x,y))#BR
                 if (x+1 == s.width() or (x+1 < s.width() and s.wall_at(x+1, y))) and ((x+1 == s.width() and y-1 == -1) or (x+1 < s.width() and s.wall_at(x+1, y-1)) or (x+1 == s.width())) and (y-1 == -1 or s.wall_at(x, y-1)):
-                    corners.append((x,y))
+                    corners.append((x,y))#TR
 
         shortestDistance = -10
         for corner in corners:
@@ -303,7 +298,6 @@ class TestCharacter(CharacterEntity):
         return 1/(1+distance)
 
 
-    #Contion of world AFTER action (Features of S')
     def features(self, s: World, a: int): # TODO
 
         actionMove = np.array(self.actionToDxDy(a))
@@ -312,12 +306,12 @@ class TestCharacter(CharacterEntity):
         if a == 9: 
             placedbomb = True
         feature0 = self.normalizeDistFeature(self.distance(self.coordsBM,self.exitCoords(s))) #distance from you to the exit
-        feature2 = self.normalizeDistFeature(self.explodeDist(s))**(self.explodeDist(s)/2.5) #Explosion Distance
-        feature4 = self.normalizeDistFeature(self.getNearestMonsterDistEuclidian(s))**(self.getNearestMonsterDistEuclidian(s)/7.5) #distance of the nearest monster to BomberMan    
-        feature7 = self.normalizeDistFeature(self.findClosestCornerDist(s))**(self.findClosestCornerDist(s)/2) #finds the closest corner to BomberMan
-        feature8 = placedbomb == True
-        feature9 = self.normalizeDistFeature(self.explodeFutureDist(s))/((self.bombTime(s)+1))
-        features = [feature0, 0, feature2, 0, feature4, 0, 0, feature7, feature8, feature9]
+        feature1 = self.normalizeDistFeature(self.explodeDist(s))**(self.explodeDist(s)/2.5) #Explosion Distance
+        feature2 = self.normalizeDistFeature(self.getNearestMonsterDistEuclidian(s))**(self.getNearestMonsterDistEuclidian(s)/7.5) #distance of the nearest monster to BomberMan    
+        feature3 = self.normalizeDistFeature(self.findClosestCornerDist(s))**(self.findClosestCornerDist(s)/2) #finds the closest corner to BomberMan
+        feature4 = placedbomb == True
+        feature5 = self.normalizeDistFeature(self.explodeFutureDist(s))/((self.bombTime(s)+1))
+        features = [feature0, feature1, feature2, feature3, feature4, feature5]
         self.coordsBM = self.bomberManCoords(s)
 
         return features
@@ -343,16 +337,14 @@ class TestCharacter(CharacterEntity):
     
     def qAct(self, s: World) -> int:
         self.coordsBM = self.bomberManCoords(s)
-        maxQ = -float('inf')#0
+        maxQ = -float('inf')
         all_a = self.all_a_prime(s)
         bestA = all_a[0]
         for a in self.all_a_prime(s):
             qVal = self.Q(s, a)
-            print("qVal:",qVal,a)
             if qVal > maxQ:
                 maxQ = qVal
                 bestA = a
-        print("bestA:",bestA)
         return bestA
     
     def checkEvents(self, world, events):
@@ -410,10 +402,6 @@ class TestCharacter(CharacterEntity):
 
 
     def do(self, wrld):
-        # Your code here
-        # print("RUNNING DO")
-        #Choose A Random Action
-
         if self.isGuided:
             chosenAction = self.interactive()
         elif random.uniform(0,1) < self.percentRandom:
@@ -426,9 +414,7 @@ class TestCharacter(CharacterEntity):
 
         self.doRealAction(wrld, chosenAction)
 
-        #Update Weights
-        # self.updateWeights(wrld, chosenAction)
-
-        print(self.weights)
-
-        np.save('weights.npy', np.array(self.weights))
+        if self.training:
+            self.updateWeights(wrld, chosenAction)
+            print(self.weights)
+            np.save('weights.npy', np.array(self.weights))
