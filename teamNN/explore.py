@@ -13,4 +13,6 @@ if(argc == 2):
 print(itterations)
 for i in range(itterations):
     # print(i)
-    os.system("python variant2.py")
+    os.chdir("./project2")
+    os.system("python ./variant5.py")
+    os.chdir("..")

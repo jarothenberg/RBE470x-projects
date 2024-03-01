@@ -25,7 +25,7 @@ class TestCharacter(CharacterEntity):
 
     def __init__(self, name, avatar, x, y):
         CharacterEntity.__init__(self, name, avatar, x, y)
-        self.weights = np.load('weights.npy')
+        self.weights = np.load('../weights.npy')
 
     def doAct(self, world: World, playerAction: int) -> World:
         characters = self.getCharacteres(world)
@@ -373,7 +373,6 @@ class TestCharacter(CharacterEntity):
         r = self.reward(s_prime, events) - self.reward(s) - self.livingExpense
 
         if(bombPrev == None and bombNext != None):
-            print("PLACED BOMB")
             r += 100
 
         all_a = self.all_a_prime(s_prime)
@@ -413,7 +412,7 @@ class TestCharacter(CharacterEntity):
             chosenAction = self.interactive()
         elif random.uniform(0,1) < self.percentRandom:
             chosenAction = random.randint(0,9)
-            print("RAND")
+            # print("RAND")
         else:
             chosenAction = self.qAct(wrld)  
         
@@ -423,5 +422,5 @@ class TestCharacter(CharacterEntity):
 
         if self.training:
             self.updateWeights(wrld, chosenAction)
-            print(self.weights)
-            np.save('weights.npy', np.array(self.weights))
+            # print(self.weights)
+            np.save('../weights.npy', np.array(self.weights))
